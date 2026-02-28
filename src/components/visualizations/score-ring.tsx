@@ -23,7 +23,7 @@ export function ScoreRing({ score, maxScore = 10, size = 64, strokeWidth = 5, la
 
   const ring = (
     <div className="flex flex-col items-center gap-1">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Score: ${score.toFixed(1)} out of ${maxScore}`} style={{ transform: "rotate(-90deg)" }}>
         <circle
           cx={size / 2}
           cy={size / 2}

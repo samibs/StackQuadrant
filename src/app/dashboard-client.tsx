@@ -8,6 +8,7 @@ import { ScoreRing } from "@/components/visualizations/score-ring";
 import { ScoreBar } from "@/components/visualizations/score-bar";
 import { Tooltip } from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
+import { QuadrantChart } from "@/components/visualizations/quadrant-chart";
 
 interface ToolData {
   id: string;
@@ -49,6 +50,51 @@ interface FeaturedQuadrant {
   positions: Array<{ toolId: string; toolName: string; toolSlug: string; xPosition: number; yPosition: number }>;
 }
 
+interface SiteStats {
+  toolCount: number;
+  benchmarkCount: number;
+  quadrantCount: number;
+  lastUpdated: Date | string | null;
+}
+
+interface DimensionData {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  weight: string;
+  displayOrder: number;
+}
+
+interface RecentScoreChange {
+  id: string;
+  toolName: string;
+  toolSlug: string;
+  oldScore: string;
+  newScore: string;
+  changedAt: Date;
+}
+
+interface FeaturedRepo {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  githubStars: number | null;
+  overallScore: string | null;
+  category: { name: string; slug: string } | null;
+}
+
+interface RecentShowcaseProject {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  screenshotUrl: string | null;
+  builderName: string;
+  qualityScore: string | null;
+}
+
 interface DashboardProps {
   tools: ToolData[];
   quadrants: Array<{ id: string; title: string; slug: string; description: string }>;
@@ -57,9 +103,14 @@ interface DashboardProps {
   blogPosts: BlogPostData[];
   recentlyUpdated: RecentlyUpdatedTool[];
   featuredQuadrant: FeaturedQuadrant | null;
+  siteStats: SiteStats | null;
+  dimensions: DimensionData[];
+  recentScoreChanges: RecentScoreChange[];
+  featuredRepos: FeaturedRepo[];
+  recentShowcase: RecentShowcaseProject[];
 }
 
-export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPosts, recentlyUpdated, featuredQuadrant }: DashboardProps) {
+export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPosts, recentlyUpdated, featuredQuadrant, siteStats, dimensions, recentScoreChanges, featuredRepos, recentShowcase }: DashboardProps) {
   const hasData = tools.length > 0 || quadrants.length > 0;
   const searchParams = useSearchParams();
   const confirmed = searchParams.get("confirmed");
@@ -92,65 +143,113 @@ export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPost
           </button>
         </div>
       )}
-      {/* Hero section — minimal, data-focused */}
+      {/* Hero section — authority messaging */}
       <div
-        className="hero-section flex items-center justify-between px-[var(--space-4)] py-[var(--space-3)]"
+        className="hero-section"
         style={{
           background: "var(--bg-surface)",
           border: "1px solid var(--border-default)",
           borderRadius: "var(--radius-sm)",
           marginBottom: "var(--grid-gap)",
+          padding: "var(--space-5) var(--space-4)",
           flexShrink: 0,
         }}
       >
-        <div>
-          <h1 style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>
-            AI Developer Tool Intelligence
-          </h1>
-          <p style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", marginTop: "2px" }}>
-            Data-driven evaluations of AI coding tools, stacks, and workflows
-          </p>
-        </div>
-        <div className="flex items-center gap-[var(--space-2)]">
-          <span className="status-dot" />
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>
-            {tools.length} tools tracked
-          </span>
-        </div>
+        <h1 style={{ fontFamily: "var(--font-sans)", fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.3 }}>
+          The Independent Benchmark for AI Developer Tools
+        </h1>
+        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-secondary)", marginTop: "var(--space-2)", maxWidth: "600px" }}>
+          Data-driven evaluations across 6 dimensions. No sponsorships. No pay-to-rank.
+        </p>
+        {siteStats && (
+          <div className="flex items-center gap-[var(--space-4)] mt-[var(--space-3)]" style={{ flexWrap: "wrap" }}>
+            <div className="flex items-center gap-[var(--space-1)]">
+              <span className="status-dot" />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                {siteStats.toolCount}
+              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>
+                tools evaluated
+              </span>
+            </div>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--border-strong)" }}>|</span>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{siteStats.benchmarkCount}</span> benchmarks
+            </div>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--border-strong)" }}>|</span>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{siteStats.quadrantCount}</span> quadrant analyses
+            </div>
+            {siteStats.lastUpdated && (
+              <>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--border-strong)" }}>|</span>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>
+                  Updated {new Date(siteStats.lastUpdated).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Credibility banner — full-width, high visibility */}
-      <Link
-        href="/methodology"
-        className="credibility-banner"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "var(--space-2)",
-          fontFamily: "var(--font-mono)",
-          fontSize: "12px",
-          padding: "10px var(--space-4)",
-          background: "rgba(14,165,233,0.08)",
-          border: "1px solid rgba(14,165,233,0.2)",
-          borderRadius: "var(--radius-sm)",
-          color: "var(--accent-primary)",
-          textDecoration: "none",
-          marginBottom: "var(--grid-gap)",
-          fontWeight: 500,
-        }}
-      >
-        <span style={{ fontSize: "14px" }}>&#9670;</span>
-        Scored across 6 dimensions &middot; 30+ tools evaluated &middot; Updated quarterly — See our methodology &rarr;
-      </Link>
+      {/* How We Score — methodology summary */}
+      {dimensions.length > 0 && (
+        <div
+          className="dimension-badges-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+            gap: "var(--space-2)",
+            marginBottom: "var(--grid-gap)",
+          }}
+        >
+          {dimensions.map((dim) => {
+            const weight = dim.weight ? parseFloat(dim.weight) : 1;
+            const totalWeight = dimensions.reduce((sum, d) => sum + (d.weight ? parseFloat(d.weight) : 1), 0);
+            const pct = ((weight / totalWeight) * 100).toFixed(0);
+            return (
+              <Tooltip key={dim.id} content={dim.description}>
+                <div
+                  style={{
+                    background: "var(--bg-surface)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "var(--space-2) var(--space-3)",
+                    cursor: "help",
+                  }}
+                >
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "var(--text-primary)" }}>
+                    {dim.name}
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                    {pct}% weight
+                  </div>
+                </div>
+              </Tooltip>
+            );
+          })}
+          <Link
+            href="/methodology"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(14,165,233,0.05)", border: "1px solid rgba(14,165,233,0.2)",
+              borderRadius: "var(--radius-sm)", padding: "var(--space-2) var(--space-3)",
+              fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)",
+              textDecoration: "none", fontWeight: 500,
+            }}
+          >
+            Full methodology →
+          </Link>
+        </div>
+      )}
 
       {/* Featured Insight */}
       {hasData && tools.length >= 2 && (
         <FeaturedInsight tools={tools} />
       )}
 
-      {/* Recently Updated strip */}
-      {recentlyUpdated.length > 0 && (
+      {/* Recently Updated strip with trending badges */}
+      {(recentlyUpdated.length > 0 || recentScoreChanges.length > 0) && (
         <div
           className="recently-updated-strip flex items-center gap-[var(--space-4)] flex-wrap"
           style={{
@@ -161,31 +260,114 @@ export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPost
             marginBottom: "var(--grid-gap)",
           }}
         >
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
-            Recently Updated
-          </span>
-          {recentlyUpdated.map((t) => (
+          {recentScoreChanges.length > 0 ? (
+            <>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                Score Changes
+              </span>
+              {recentScoreChanges.map((sc) => {
+                const oldVal = parseFloat(sc.oldScore);
+                const newVal = parseFloat(sc.newScore);
+                const delta = newVal - oldVal;
+                const isUp = delta > 0;
+                return (
+                  <Link
+                    key={sc.id}
+                    href={`/tools/${sc.toolSlug}`}
+                    className="flex items-center gap-[var(--space-1)] no-underline"
+                  >
+                    <span style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                      {sc.toolName}
+                    </span>
+                    <span style={{
+                      fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
+                      color: isUp ? "var(--score-high)" : "var(--score-low)",
+                    }}>
+                      {isUp ? "▲" : "▼"}{Math.abs(delta).toFixed(1)}
+                    </span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
+                      {oldVal.toFixed(1)}→{newVal.toFixed(1)}
+                    </span>
+                  </Link>
+                );
+              })}
+            </>
+          ) : (
+            <>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+                Recently Updated
+              </span>
+              {recentlyUpdated.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/tools/${t.slug}`}
+                  className="flex items-center gap-[var(--space-1)] no-underline"
+                >
+                  <span style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                    {t.name}
+                  </span>
+                  <span style={{
+                    fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
+                    color: (t.overallScore || 0) >= 8 ? "var(--score-high)" : (t.overallScore || 0) >= 5 ? "var(--score-mid)" : "var(--score-low)",
+                  }}>
+                    {t.overallScore?.toFixed(1)}
+                  </span>
+                  {t.updatedAt && (
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>
+                      {new Date(t.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Featured Quadrant — full-width interactive */}
+      {featuredQuadrant && featuredQuadrant.positions.length > 0 && (
+        <div
+          style={{
+            background: "var(--bg-surface)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "var(--radius-sm)",
+            padding: "var(--space-4)",
+            marginBottom: "var(--grid-gap)",
+          }}
+        >
+          <div className="flex items-center justify-between mb-[var(--space-3)]" style={{ flexWrap: "wrap", gap: "var(--space-2)" }}>
+            <div>
+              <h2 style={{ fontFamily: "var(--font-sans)", fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                {featuredQuadrant.title}
+              </h2>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                {featuredQuadrant.positions.length} tools · {featuredQuadrant.xAxisLabel} vs {featuredQuadrant.yAxisLabel}
+              </p>
+            </div>
             <Link
-              key={t.id}
-              href={`/tools/${t.slug}`}
-              className="flex items-center gap-[var(--space-1)] no-underline"
+              href={`/quadrants/${featuredQuadrant.slug}`}
+              style={{
+                fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600,
+                padding: "6px 14px", background: "var(--accent-primary)", color: "#fff",
+                borderRadius: "var(--radius-sm)", textDecoration: "none",
+              }}
             >
-              <span style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
-                {t.name}
-              </span>
-              <span style={{
-                fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 700,
-                color: (t.overallScore || 0) >= 8 ? "var(--score-high)" : (t.overallScore || 0) >= 5 ? "var(--score-mid)" : "var(--score-low)",
-              }}>
-                {t.overallScore?.toFixed(1)}
-              </span>
-              {t.updatedAt && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>
-                  {new Date(t.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </span>
-              )}
+              Explore full quadrant →
             </Link>
-          ))}
+          </div>
+          <QuadrantChart
+            xAxisLabel={featuredQuadrant.xAxisLabel}
+            yAxisLabel={featuredQuadrant.yAxisLabel}
+            quadrantLabels={featuredQuadrant.quadrantLabels}
+            maxHeight="380px"
+            positions={featuredQuadrant.positions.map((p) => ({
+              toolId: p.toolId,
+              toolName: p.toolName,
+              toolSlug: p.toolSlug,
+              xPosition: p.xPosition,
+              yPosition: p.yPosition,
+            }))}
+          />
         </div>
       )}
 
@@ -243,20 +425,28 @@ export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPost
                             {tool.category}
                           </span>
                         </div>
-                        {/* Mini score bars for top 3 dimensions */}
-                        {i < 5 && (
-                          <div className="flex gap-[var(--space-2)] mt-1">
-                            {tool.scores.filter(s => s.score !== null).slice(0, 3).map(s => (
-                              <div key={s.dimensionSlug} className="flex items-center gap-1">
-                                <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>{s.dimension.split(" ")[0]}</span>
-                                <span style={{
-                                  fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 600,
-                                  color: (s.score || 0) >= 8 ? "var(--score-high)" : (s.score || 0) >= 5 ? "var(--score-mid)" : "var(--score-low)"
-                                }}>{s.score?.toFixed(1)}</span>
+                        {/* Dimension score bars */}
+                        <div className="flex flex-col gap-[2px] mt-1">
+                          {tool.scores.filter(s => s.score !== null).map(s => (
+                            <div key={s.dimensionSlug} className="flex items-center gap-[4px]">
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", color: "var(--text-muted)", width: "52px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {s.dimension.replace(/ & /g, "/").replace(/Understanding/, "Ctx").replace(/Integration/, "Int").replace(/Generation/, "Gen").replace(/Experience/, "DX").replace(/Multi-file Editing/, "Multi").replace(/Debugging/, "Debug")}
+                              </span>
+                              <div style={{ flex: 1, height: "3px", background: "var(--bg-elevated)", borderRadius: "2px", overflow: "hidden", maxWidth: "60px" }}>
+                                <div style={{
+                                  width: `${((s.score || 0) / 10) * 100}%`,
+                                  height: "100%",
+                                  borderRadius: "2px",
+                                  background: (s.score || 0) >= 8 ? "var(--score-high)" : (s.score || 0) >= 5 ? "var(--score-mid)" : "var(--score-low)",
+                                }} />
                               </div>
-                            ))}
-                          </div>
-                        )}
+                              <span style={{
+                                fontFamily: "var(--font-mono)", fontSize: "8px", fontWeight: 600, width: "18px", textAlign: "right",
+                                color: (s.score || 0) >= 8 ? "var(--score-high)" : (s.score || 0) >= 5 ? "var(--score-mid)" : "var(--score-low)"
+                              }}>{s.score?.toFixed(1)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex flex-col items-center gap-0.5">
                         <div className="relative" style={{ width: "44px", height: "44px" }}>
@@ -275,46 +465,20 @@ export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPost
             </Panel>
           </div>
 
-          {/* Quadrants with mini chart */}
+          {/* Quadrants — compact panel linking to full-page view */}
           <Panel title="Quadrants" actions={<Link href="/quadrants" style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>View all &rarr;</Link>}>
-            {featuredQuadrant && featuredQuadrant.positions.length > 0 ? (
-              <div>
-                <Link href={`/quadrants/${featuredQuadrant.slug}`} className="no-underline block">
-                  <MiniQuadrantChart
-                    positions={featuredQuadrant.positions}
-                    quadrantLabels={featuredQuadrant.quadrantLabels}
-                  />
-                  <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)", marginTop: "var(--space-2)" }}>
-                    {featuredQuadrant.title}
-                  </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
-                    {featuredQuadrant.positions.length} tools plotted &middot; {featuredQuadrant.xAxisLabel} vs {featuredQuadrant.yAxisLabel}
-                  </div>
-                </Link>
-                {quadrants.length > 1 && (
-                  <div className="flex flex-col gap-[var(--space-1)] mt-[var(--space-3)]" style={{ borderTop: "1px solid var(--border-default)", paddingTop: "var(--space-2)" }}>
-                    {quadrants.slice(1, 3).map((q) => (
-                      <Link key={q.id} href={`/quadrants/${q.slug}`} className="no-underline" style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-secondary)" }}>
-                        {q.title} &rarr;
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-[var(--space-2)]">
-                {quadrants.length === 0 ? (
-                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>No quadrants published yet</p>
-                ) : (
-                  quadrants.map((q) => (
-                    <Link key={q.id} href={`/quadrants/${q.slug}`} className="no-underline p-[var(--space-2)]" style={{ border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
-                      <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{q.title}</div>
-                      <div style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{q.description.substring(0, 120)}...</div>
-                    </Link>
-                  ))
-                )}
-              </div>
-            )}
+            <div className="flex flex-col gap-[var(--space-2)]">
+              {quadrants.length === 0 ? (
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-muted)" }}>No quadrants published yet</p>
+              ) : (
+                quadrants.slice(0, 3).map((q) => (
+                  <Link key={q.id} href={`/quadrants/${q.slug}`} className="no-underline p-[var(--space-2)]" style={{ border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", display: "block" }}>
+                    <div style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>{q.title}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginTop: "4px" }}>{q.description.substring(0, 80)}...</div>
+                  </Link>
+                ))
+              )}
+            </div>
           </Panel>
 
           {/* Latest Benchmarks */}
@@ -426,6 +590,79 @@ export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPost
             </div>
           </Panel>
 
+          {/* Featured Repos */}
+          {featuredRepos.length > 0 && (
+            <Panel title="Featured Repos" actions={<Link href="/repos" style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>All repos &rarr;</Link>}>
+              <div className="flex flex-col gap-[var(--space-2)]">
+                {featuredRepos.map((repo) => (
+                  <Link
+                    key={repo.id}
+                    href={`/repos/${repo.slug}`}
+                    className="no-underline p-[var(--space-2)]"
+                    style={{ border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                          {repo.name}
+                        </div>
+                        {repo.category && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--accent-primary)" }}>
+                            {repo.category.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-[var(--space-2)]">
+                        {repo.githubStars !== null && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
+                            ★ {repo.githubStars >= 1000 ? `${(repo.githubStars / 1000).toFixed(1)}k` : repo.githubStars}
+                          </span>
+                        )}
+                        {repo.overallScore && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "var(--status-success)" }}>
+                            {repo.overallScore}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </Panel>
+          )}
+
+          {/* Latest Showcase Projects */}
+          {recentShowcase.length > 0 && (
+            <Panel title="Vibe Coded Projects" actions={<Link href="/showcase" style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>All projects &rarr;</Link>}>
+              <div className="flex flex-col gap-[var(--space-2)]">
+                {recentShowcase.map((project) => (
+                  <Link
+                    key={project.id}
+                    href={`/showcase/${project.slug}`}
+                    className="no-underline p-[var(--space-2)]"
+                    style={{ border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div style={{ fontFamily: "var(--font-sans)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)" }}>
+                          {project.name}
+                        </div>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>
+                          by {project.builderName}
+                        </span>
+                      </div>
+                      {project.qualityScore && (
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: parseFloat(project.qualityScore) >= 7 ? "var(--status-success)" : "var(--text-muted)" }}>
+                          {project.qualityScore}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </Panel>
+          )}
+
           {/* Latest from Blog */}
           {blogPosts.length > 0 && (
             <Panel title="Latest from Blog" actions={<Link href="/blog" style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>All articles &rarr;</Link>}>
@@ -520,7 +757,9 @@ function NewsletterForm() {
         </p>
       )}
       <form onSubmit={handleSubmit} className="flex gap-[var(--space-2)]">
+        <label htmlFor="newsletter-email" className="sr-only">Email address</label>
         <input
+          id="newsletter-email"
           name="email"
           type="email"
           placeholder="you@company.com"
@@ -567,7 +806,7 @@ function MiniQuadrantChart({ positions, quadrantLabels }: { positions: Array<{ t
   const mid = size / 2;
 
   return (
-    <svg width="100%" viewBox={`0 0 ${size} ${size}`} style={{ maxWidth: size, display: "block", margin: "0 auto" }}>
+    <svg width="100%" viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Quadrant chart showing ${positions.length} tools across 4 quadrants`} style={{ maxWidth: size, display: "block", margin: "0 auto" }}>
       {/* Quadrant backgrounds */}
       <rect x={pad} y={pad} width={plotSize / 2} height={plotSize / 2} fill="rgba(234,179,8,0.06)" />
       <rect x={mid} y={pad} width={plotSize / 2} height={plotSize / 2} fill="rgba(22,163,74,0.06)" />

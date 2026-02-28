@@ -3,7 +3,7 @@ import { Panel } from "@/components/layout/panel";
 
 export const metadata = {
   title: "Help & User Guide",
-  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, and use keyboard shortcuts.",
+  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, and use keyboard shortcuts.",
   alternates: { canonical: "/help" },
 };
 
@@ -22,7 +22,7 @@ export default function HelpPage() {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--grid-gap)" }}>
+      <div className="help-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--grid-gap)" }}>
         {/* Column 1 — Scores & Dimensions */}
         <div className="flex flex-col" style={{ gap: "var(--grid-gap)" }}>
           <Panel title="Understanding Scores">
@@ -90,11 +90,15 @@ export default function HelpPage() {
           <Panel title="Pages & Navigation">
             <div className="flex flex-col gap-[var(--space-3)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
               {[
-                { name: "Dashboard", href: "/", desc: "Overview showing top-ranked tools, quadrants, latest benchmarks, and top stacks at a glance." },
+                { name: "Dashboard", href: "/", desc: "Overview showing top-ranked tools, featured repos, latest showcase projects, quadrants, and benchmarks at a glance." },
                 { name: "Capability Matrix", href: "/matrix", desc: "Sortable, filterable table comparing all tools across every dimension. Click column headers to sort. Use category filters to narrow results." },
                 { name: "Quadrants", href: "/quadrants", desc: "Interactive 2D charts positioning tools into four regions: Leaders, Visionaries, Challengers, and Niche Players. Click any dot to view the tool." },
                 { name: "Benchmarks", href: "/benchmarks", desc: "Structured benchmark results for specific AI coding tasks. Compare tools side-by-side on real-world tasks." },
                 { name: "Stacks", href: "/stacks", desc: "Evaluate tool combinations for specific workflows. Stacks are rated by how well the tools work together." },
+                { name: "Repos", href: "/repos", desc: "AI/LLM Ecosystem Directory. Browse and filter open-source repos by category (frameworks, agents, RAG, vector DBs, etc.) with automated GitHub metrics." },
+                { name: "Showcase", href: "/showcase", desc: "Vibe Coding Showcase. Community-submitted projects built with AI tools. Submit your own project and get quality-scored by our team." },
+                { name: "Best For", href: "/best-for", desc: "Find the right AI tool for your use case — rapid prototyping, enterprise, learning, open-source, and more." },
+                { name: "Stack Builder", href: "/stack-builder", desc: "Interactive wizard to compose a custom tool stack, assign roles, and analyze strengths and gaps." },
                 { name: "Methodology", href: "/methodology", desc: "Detailed explanation of our evaluation process, scoring criteria, and update cadence." },
               ].map((page) => (
                 <Link
@@ -113,7 +117,7 @@ export default function HelpPage() {
           <Panel title="Keyboard Shortcuts">
             <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)" }}>
               {[
-                { keys: "Cmd+K / Ctrl+K", action: "Open command palette — search tools, quadrants, benchmarks, and stacks instantly" },
+                { keys: "Cmd+K / Ctrl+K", action: "Open command palette — search tools, repos, showcase projects, quadrants, benchmarks, and stacks instantly" },
                 { keys: "Esc", action: "Close command palette or any open dialog" },
               ].map((shortcut) => (
                 <div key={shortcut.keys} className="flex items-start gap-[var(--space-3)]" style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
@@ -170,9 +174,12 @@ export default function HelpPage() {
                   <li>Create and position tools on quadrant charts</li>
                   <li>Publish benchmark results with structured metrics</li>
                   <li>Define and rate tool stacks for workflows</li>
+                  <li>Add AI/LLM repos, trigger GitHub sync, score quality dimensions</li>
+                  <li>Manage repo categories (add, edit, reorder)</li>
+                  <li>Moderate showcase submissions (approve, reject, quality-score)</li>
                 </ul>
               </div>
-              <p>Tools, quadrants, benchmarks, and stacks all have a <strong style={{ color: "var(--text-primary)" }}>published</strong> status — unpublished items are only visible in the admin panel.</p>
+              <p>All entities have a <strong style={{ color: "var(--text-primary)" }}>published</strong> status — unpublished items are only visible in the admin panel. Showcase projects follow a verification pipeline: submitted → email verified → admin review → published.</p>
             </div>
           </Panel>
 
@@ -184,7 +191,15 @@ export default function HelpPage() {
                 <span style={{ fontSize: "11px", marginLeft: "var(--space-2)" }}>— list all published tools with scores</span>
               </div>
               <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
-                <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/search?q=cursor</code>
+                <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/repos</code>
+                <span style={{ fontSize: "11px", marginLeft: "var(--space-2)" }}>— list published repos with GitHub metrics</span>
+              </div>
+              <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
+                <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/showcase</code>
+                <span style={{ fontSize: "11px", marginLeft: "var(--space-2)" }}>— list published showcase projects</span>
+              </div>
+              <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
+                <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/search</code>
                 <span style={{ fontSize: "11px", marginLeft: "var(--space-2)" }}>— search across all entities</span>
               </div>
               <p style={{ fontSize: "11px" }}>

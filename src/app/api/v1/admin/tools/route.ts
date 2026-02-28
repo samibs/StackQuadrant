@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, slug, description, websiteUrl, logoUrl, category, vendor, status, overallScore } = body;
+    const { name, slug, description, websiteUrl, logoUrl, category, vendor, status, overallScore, bestFor } = body;
 
     const errors = collectErrors(
       validateString(name, "name", { max: 200 }),
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       vendor: vendor || null,
       status: status || "draft",
       overallScore: overallScore?.toString() || null,
+      bestFor: Array.isArray(bestFor) ? bestFor : [],
     }).returning();
 
     return apiSuccess(tool, undefined, 201);

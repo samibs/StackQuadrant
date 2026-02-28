@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import DOMPurify from "isomorphic-dompurify";
 import { getBlogPostBySlug } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -66,7 +67,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             color: "var(--text-primary)",
             lineHeight: "1.8",
           }}
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }}
         />
 
         {tags.length > 0 && (

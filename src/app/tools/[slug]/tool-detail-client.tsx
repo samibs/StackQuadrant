@@ -38,7 +38,24 @@ interface ToolDetail {
   stackAppearances: Array<{ stackId: string; stackName: string; stackSlug: string; role: string; stackScore: number | null }>;
 }
 
-export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
+interface ScoreHistoryEntry {
+  id: string;
+  dimensionName: string;
+  oldScore: string;
+  newScore: string;
+  changeReason: string | null;
+  changedBy: string;
+  changedAt: Date;
+}
+
+interface OverallTrendEntry {
+  id: string;
+  oldScore: string;
+  newScore: string;
+  changedAt: Date;
+}
+
+export function ToolDetailClient({ tool, scoreHistory, overallTrend }: { tool: ToolDetail; scoreHistory: ScoreHistoryEntry[]; overallTrend: OverallTrendEntry[] }) {
   const validScores = tool.scores.filter((s) => s.score !== null).map((s) => ({
     dimension: s.dimension,
     score: s.score!,
@@ -145,6 +162,62 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
               <RadarChart scores={validScores} size={280} />
             </div>
           </Panel>
+
+          {/* Score Trend */}
+          {overallTrend.length > 0 && (
+            <Panel title="Score Trend">
+              <OverallSparkline trend={overallTrend} currentScore={tool.overallScore} />
+            </Panel>
+          )}
+
+          {/* Score History Timeline */}
+          {scoreHistory.length > 0 && (
+            <Panel title="Score Changes">
+              <div className="flex flex-col gap-[var(--space-2)]" style={{ maxHeight: "300px", overflowY: "auto" }}>
+                {scoreHistory.slice(0, 20).map((entry) => {
+                  const oldVal = parseFloat(entry.oldScore);
+                  const newVal = parseFloat(entry.newScore);
+                  const delta = newVal - oldVal;
+                  const isUp = delta > 0;
+                  return (
+                    <div
+                      key={entry.id}
+                      style={{
+                        padding: "var(--space-2)",
+                        border: "1px solid var(--border-default)",
+                        borderRadius: "var(--radius-sm)",
+                        borderLeft: `3px solid ${isUp ? "var(--score-high)" : "var(--score-low)"}`,
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: 600, color: "var(--text-primary)" }}>
+                          {entry.dimensionName}
+                        </span>
+                        <span style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: isUp ? "var(--score-high)" : "var(--score-low)",
+                        }}>
+                          {oldVal.toFixed(1)} → {newVal.toFixed(1)} {isUp ? "▲" : "▼"}{Math.abs(delta).toFixed(1)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between" style={{ marginTop: "2px" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>
+                          {new Date(entry.changedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </span>
+                        {entry.changeReason && (
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-secondary)", maxWidth: "60%", textAlign: "right" }}>
+                            {entry.changeReason}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
+          )}
 
           {/* Pricing & Licensing */}
           {(tool.pricingTier || tool.license) && (
@@ -320,6 +393,117 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
   );
 }
 
+function OverallSparkline({ trend, currentScore }: { trend: OverallTrendEntry[]; currentScore: number | null }) {
+  // Build data points: each entry has newScore (the score it changed TO)
+  const points = trend.map((t) => ({
+    score: parseFloat(t.newScore),
+    date: new Date(t.changedAt),
+  }));
+
+  // Add current score as the latest point if different from last trend entry
+  if (currentScore !== null && points.length > 0) {
+    const lastPoint = points[points.length - 1];
+    if (Math.abs(lastPoint.score - currentScore) >= 0.05) {
+      points.push({ score: currentScore, date: new Date() });
+    }
+  }
+
+  if (points.length < 2) {
+    // Show single-point summary
+    const first = parseFloat(trend[0].oldScore);
+    const last = parseFloat(trend[0].newScore);
+    const delta = last - first;
+    const isUp = delta > 0;
+    return (
+      <div className="flex items-center gap-[var(--space-3)]">
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>
+          {first.toFixed(1)} → {last.toFixed(1)}
+        </span>
+        <span style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "13px",
+          fontWeight: 600,
+          color: isUp ? "var(--score-high)" : "var(--score-low)",
+        }}>
+          {isUp ? "▲" : "▼"}{Math.abs(delta).toFixed(1)}
+        </span>
+      </div>
+    );
+  }
+
+  // SVG sparkline
+  const width = 280;
+  const height = 60;
+  const padding = { top: 8, right: 8, bottom: 8, left: 8 };
+  const chartW = width - padding.left - padding.right;
+  const chartH = height - padding.top - padding.bottom;
+
+  const scores = points.map((p) => p.score);
+  const minScore = Math.max(0, Math.min(...scores) - 0.5);
+  const maxScore = Math.min(10, Math.max(...scores) + 0.5);
+  const range = maxScore - minScore || 1;
+
+  const pathPoints = points.map((p, i) => {
+    const x = padding.left + (i / (points.length - 1)) * chartW;
+    const y = padding.top + chartH - ((p.score - minScore) / range) * chartH;
+    return { x, y };
+  });
+
+  const linePath = pathPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+
+  // Gradient fill under line
+  const areaPath = `${linePath} L ${pathPoints[pathPoints.length - 1].x} ${padding.top + chartH} L ${pathPoints[0].x} ${padding.top + chartH} Z`;
+
+  const firstScore = points[0].score;
+  const lastScore = points[points.length - 1].score;
+  const totalDelta = lastScore - firstScore;
+  const isUp = totalDelta > 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-2)" }}>
+        <div className="flex items-baseline gap-[var(--space-2)]">
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)" }}>
+            {lastScore.toFixed(1)}
+          </span>
+          <span style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "12px",
+            fontWeight: 600,
+            color: isUp ? "var(--score-high)" : totalDelta < 0 ? "var(--score-low)" : "var(--text-muted)",
+          }}>
+            {isUp ? "▲" : totalDelta < 0 ? "▼" : "—"}{Math.abs(totalDelta).toFixed(1)} overall
+          </span>
+        </div>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>
+          {points.length} updates
+        </span>
+      </div>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto" }}>
+        <defs>
+          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={isUp ? "var(--score-high)" : "var(--score-low)"} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={isUp ? "var(--score-high)" : "var(--score-low)"} stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill="url(#sparkGrad)" />
+        <path d={linePath} fill="none" stroke={isUp ? "var(--score-high)" : "var(--score-low)"} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {pathPoints.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r={i === pathPoints.length - 1 ? 4 : 2.5} fill={isUp ? "var(--score-high)" : "var(--score-low)"} stroke="var(--bg-surface)" strokeWidth="1.5" />
+        ))}
+      </svg>
+      <div className="flex justify-between" style={{ marginTop: "2px" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>
+          {points[0].date.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+        </span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>
+          {points[points.length - 1].date.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ToolSubscribeForm({ toolName }: { toolName: string }) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
@@ -364,7 +548,9 @@ function ToolSubscribeForm({ toolName }: { toolName: string }) {
         </p>
       )}
       <form onSubmit={handleSubmit} className="flex gap-[var(--space-1)]">
+        <label htmlFor="subscribe-email" className="sr-only">Email address</label>
         <input
+          id="subscribe-email"
           name="email"
           type="email"
           placeholder="you@company.com"

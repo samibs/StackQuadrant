@@ -10,8 +10,9 @@ const NAV_ITEMS = [
   { label: "QUADRANTS", href: "/quadrants" },
   { label: "BENCHMARKS", href: "/benchmarks" },
   { label: "STACKS", href: "/stacks" },
+  { label: "REPOS", href: "/repos" },
+  { label: "SHOWCASE", href: "/showcase" },
   { label: "COMPARE", href: "/compare" },
-  { label: "METHODOLOGY", href: "/methodology" },
   { label: "BLOG", href: "/blog" },
 ] as const;
 

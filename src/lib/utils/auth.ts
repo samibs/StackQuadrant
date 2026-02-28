@@ -30,7 +30,13 @@ export async function getAuthPayload(request: NextRequest) {
 
   try {
     return await verifyToken(token);
-  } catch {
+  } catch (err) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim()
+      || request.headers.get("x-real-ip")
+      || "unknown";
+    console.warn(
+      `[AUTH] Token verification failed — IP: ${ip}, Path: ${request.nextUrl.pathname}, Error: ${err instanceof Error ? err.message : "unknown"}`
+    );
     return null;
   }
 }

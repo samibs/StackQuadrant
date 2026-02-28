@@ -102,7 +102,9 @@ export function MatrixClient({ tools }: { tools: ToolData[] }) {
           borderRadius: "var(--radius-sm)",
         }}
       >
+        <label htmlFor="matrix-search" className="sr-only">Search tools</label>
         <input
+          id="matrix-search"
           type="text"
           placeholder="Search tools..."
           value={search}
@@ -154,7 +156,9 @@ export function MatrixClient({ tools }: { tools: ToolData[] }) {
             </button>
           ))}
         </div>
+        <label htmlFor="matrix-tag-filter" className="sr-only">Filter by feature</label>
         <select
+          id="matrix-tag-filter"
           value={tagFilter}
           onChange={(e) => setTagFilter(e.target.value)}
           style={{

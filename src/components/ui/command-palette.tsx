@@ -7,14 +7,17 @@ import { useRouter } from "next/navigation";
 interface SearchItem {
   id: string;
   name: string;
-  type: "tool" | "quadrant" | "benchmark" | "stack";
+  type: "tool" | "quadrant" | "benchmark" | "stack" | "repo" | "showcase";
   slug: string;
   category?: string;
 }
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let searchCache: { items: SearchItem[]; fetchedAt: number } | null = null;
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<SearchItem[]>([]);
+  const [items, setItems] = useState<SearchItem[]>(searchCache?.items || []);
   const router = useRouter();
 
   useEffect(() => {
@@ -29,13 +32,21 @@ export function CommandPalette() {
   }, []);
 
   useEffect(() => {
-    if (open && items.length === 0) {
-      fetch("/api/v1/search")
-        .then((res) => res.json())
-        .then((data) => setItems(data.data || []))
-        .catch(() => {});
+    if (!open) return;
+    const cacheValid = searchCache && (Date.now() - searchCache.fetchedAt) < CACHE_TTL_MS;
+    if (cacheValid && searchCache) {
+      setItems(searchCache.items);
+      return;
     }
-  }, [open, items.length]);
+    fetch("/api/v1/search")
+      .then((res) => res.json())
+      .then((data) => {
+        const fetched = data.data || [];
+        searchCache = { items: fetched, fetchedAt: Date.now() };
+        setItems(fetched);
+      })
+      .catch(() => {});
+  }, [open]);
 
   const navigate = (item: SearchItem) => {
     const paths: Record<string, string> = {
@@ -43,6 +54,8 @@ export function CommandPalette() {
       quadrant: `/quadrants/${item.slug}`,
       benchmark: `/benchmarks/${item.slug}`,
       stack: `/stacks/${item.slug}`,
+      repo: `/repos/${item.slug}`,
+      showcase: `/showcase/${item.slug}`,
     };
     router.push(paths[item.type]);
     setOpen(false);

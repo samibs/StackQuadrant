@@ -18,7 +18,7 @@ export function ScoreBar({ score, maxScore = 10, label, showValue = true, toolti
   const color = score >= 8 ? "var(--score-high)" : score >= 5 ? "var(--score-mid)" : "var(--score-low)";
 
   return (
-    <div>
+    <div role="meter" aria-valuenow={score} aria-valuemin={0} aria-valuemax={maxScore} aria-label={label ? `${label}: ${score.toFixed(1)} out of ${maxScore}` : `Score: ${score.toFixed(1)} out of ${maxScore}`}>
       <div className="flex items-center gap-[var(--space-2)] w-full">
         {label && (
           <span
