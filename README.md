@@ -2,6 +2,8 @@
 
 A data-driven intelligence platform for evaluating AI developer tools. Think Gartner Magic Quadrant, but built by developers for developers.
 
+![StackQuadrant Dashboard](public/screenshot-dashboard.png)
+
 ## Features
 
 - **AI Tool Capability Matrix** — Score tools across 6 dimensions (Code Generation, Context Understanding, Developer Experience, Multi-file Editing, Debugging & Fixing, Ecosystem Integration)

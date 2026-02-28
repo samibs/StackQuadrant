@@ -47,10 +47,11 @@ next-env.d.ts
 logs/
 *.log
 
-# screenshots
+# screenshots (except README assets)
 *.png
 *.jpg
 *.jpeg
+!public/screenshot-dashboard.png
 
 # framework config (editor/AI agent configs)
 .agents/
