@@ -4,8 +4,9 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Quadrants — StackQuadrant",
-  description: "Visual capability quadrants for AI developer tools",
+  title: "Quadrants",
+  description: "Magic Quadrant-style charts positioning AI coding tools as Leaders, Visionaries, Challengers, or Niche Players based on execution ability and vision completeness.",
+  alternates: { canonical: "/quadrants" },
 };
 
 export default async function QuadrantsPage() {

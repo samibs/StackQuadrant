@@ -9,14 +9,40 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Header } from "@/components/layout/header";
 import { CommandPalette } from "@/components/ui/command-palette";
+import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://stackquadrant.dev";
 
 export const metadata: Metadata = {
-  title: "StackQuadrant — AI Developer Tool Intelligence",
-  description: "Data-driven evaluations of AI coding tools, stacks, and workflows. The developer intelligence platform.",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "StackQuadrant — AI Developer Tool Intelligence",
+    template: "%s — StackQuadrant",
+  },
+  description: "Data-driven evaluations of AI coding tools, stacks, and workflows. Compare 15+ tools across 6 dimensions with real benchmarks.",
+  keywords: ["AI coding tools", "developer tools", "code generation", "AI benchmarks", "Gartner alternative", "tool comparison", "developer intelligence"],
+  authors: [{ name: "StackQuadrant" }],
+  creator: "StackQuadrant",
   openGraph: {
     title: "StackQuadrant — AI Developer Tool Intelligence",
-    description: "Data-driven evaluations of AI coding tools, stacks, and workflows.",
+    description: "Data-driven evaluations of AI coding tools, stacks, and workflows. Compare 15+ tools across 6 dimensions.",
+    url: BASE_URL,
+    siteName: "StackQuadrant",
+    locale: "en_US",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "StackQuadrant — AI Developer Tool Intelligence",
+    description: "Data-driven evaluations of AI coding tools, stacks, and workflows.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large" },
+  },
+  alternates: {
+    canonical: BASE_URL,
   },
 };
 
@@ -41,6 +67,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <OrganizationJsonLd />
+        <WebSiteJsonLd />
         <ThemeProvider>
           <Header />
           <CommandPalette />

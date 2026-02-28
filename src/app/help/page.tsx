@@ -2,8 +2,9 @@ import Link from "next/link";
 import { Panel } from "@/components/layout/panel";
 
 export const metadata = {
-  title: "Help — StackQuadrant",
-  description: "How to use StackQuadrant — scores, navigation, and features explained",
+  title: "Help & User Guide",
+  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, and use keyboard shortcuts.",
+  alternates: { canonical: "/help" },
 };
 
 export default function HelpPage() {

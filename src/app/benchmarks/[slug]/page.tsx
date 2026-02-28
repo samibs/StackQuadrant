@@ -1,9 +1,26 @@
+import type { Metadata } from "next";
 import { getBenchmarkBySlug } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { InfoIcon } from "@/components/ui/tooltip";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const benchmark = await getBenchmarkBySlug(slug);
+  if (!benchmark) return {};
+  return {
+    title: benchmark.title,
+    description: `${benchmark.title} benchmark results comparing AI coding tools. Category: ${benchmark.category}.`,
+    alternates: { canonical: `/benchmarks/${slug}` },
+    openGraph: {
+      title: `${benchmark.title} — Benchmark Results`,
+      description: `AI tool benchmark: ${benchmark.title}. Compare performance across tools.`,
+    },
+  };
+}
 
 export default async function BenchmarkDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -16,6 +33,8 @@ export default async function BenchmarkDetailPage({ params }: { params: Promise<
   const metrics = benchmark.metrics as Array<{ name: string; unit: string; higherIsBetter: boolean }>;
 
   return (
+    <>
+    <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Benchmarks", href: "/benchmarks" }, { name: benchmark.title, href: `/benchmarks/${slug}` }]} />
     <div style={{ padding: "var(--grid-gap)" }}>
       {/* Header */}
       <div
@@ -101,5 +120,6 @@ export default async function BenchmarkDetailPage({ params }: { params: Promise<
         </table>
       </div>
     </div>
+    </>
   );
 }

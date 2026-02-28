@@ -5,8 +5,9 @@ import { ScoreRing } from "@/components/visualizations/score-ring";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Stack Ratings — StackQuadrant",
-  description: "Evaluation of AI developer tool stacks and workflows",
+  title: "Stack Ratings",
+  description: "Evaluate AI developer tool combinations for real-world workflows. Stack effectiveness scores measure how well tools work together for specific use cases.",
+  alternates: { canonical: "/stacks" },
 };
 
 export default async function StacksPage() {

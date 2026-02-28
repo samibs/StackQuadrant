@@ -4,8 +4,9 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Benchmarks — StackQuadrant",
-  description: "Real-world benchmark results for AI coding tools",
+  title: "Benchmarks",
+  description: "Real-world benchmark results for AI coding tools. Structured tests covering code generation, debugging, refactoring, context handling, and test generation quality.",
+  alternates: { canonical: "/benchmarks" },
 };
 
 export default async function BenchmarksPage() {

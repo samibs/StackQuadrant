@@ -1,11 +1,28 @@
+import type { Metadata } from "next";
 import { getStackBySlug } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Panel } from "@/components/layout/panel";
 import { ScoreRing } from "@/components/visualizations/score-ring";
 import { ScoreBar } from "@/components/visualizations/score-bar";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const stack = await getStackBySlug(slug);
+  if (!stack) return {};
+  return {
+    title: stack.name,
+    description: `${stack.name} stack evaluation: ${stack.useCase}. Overall effectiveness score: ${stack.overallScore}/10.`,
+    alternates: { canonical: `/stacks/${slug}` },
+    openGraph: {
+      title: `${stack.name} — Stack Rating`,
+      description: `${stack.useCase}. Score: ${stack.overallScore}/10.`,
+    },
+  };
+}
 
 export default async function StackDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -16,6 +33,8 @@ export default async function StackDetailPage({ params }: { params: Promise<{ sl
   }
 
   return (
+    <>
+    <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Stacks", href: "/stacks" }, { name: stack.name, href: `/stacks/${slug}` }]} />
     <div style={{ padding: "var(--grid-gap)" }}>
       {/* Header */}
       <div
@@ -89,5 +108,6 @@ export default async function StackDetailPage({ params }: { params: Promise<{ sl
         </div>
       </div>
     </div>
+    </>
   );
 }

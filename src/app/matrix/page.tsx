@@ -4,8 +4,9 @@ import { MatrixClient } from "./matrix-client";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Capability Matrix — StackQuadrant",
-  description: "Interactive comparison of AI coding tools across multiple dimensions",
+  title: "Capability Matrix",
+  description: "Interactive sortable matrix comparing AI coding tools across Code Generation, Context Understanding, Developer Experience, Multi-file Editing, Debugging, and Ecosystem Integration.",
+  alternates: { canonical: "/matrix" },
 };
 
 export default async function MatrixPage() {

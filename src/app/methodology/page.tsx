@@ -1,8 +1,9 @@
 import { Panel } from "@/components/layout/panel";
 
 export const metadata = {
-  title: "Methodology — StackQuadrant",
-  description: "How we evaluate AI developer tools",
+  title: "Evaluation Methodology",
+  description: "How StackQuadrant evaluates AI developer tools: benchmark tasks, expert evaluation, weighted scoring across 6 dimensions, and quadrant positioning methodology.",
+  alternates: { canonical: "/methodology" },
 };
 
 export default function MethodologyPage() {
