@@ -590,9 +590,11 @@ export async function getPublishedRepos(opts: {
   sort: string;
   search: string;
   category: string;
+  owner?: string;
 }) {
   const conditions = [eq(repos.status, "published")];
   if (opts.search) conditions.push(ilike(repos.name, `%${opts.search}%`));
+  if (opts.owner) conditions.push(eq(repos.githubOwner, opts.owner));
   if (opts.category) {
     const [cat] = await db.select({ id: repoCategories.id }).from(repoCategories).where(eq(repoCategories.slug, opts.category));
     if (cat) conditions.push(eq(repos.categoryId, cat.id));

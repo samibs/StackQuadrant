@@ -10,8 +10,9 @@ export async function GET(request: NextRequest) {
     const sort = url.searchParams.get("sort") || "-stars";
     const search = url.searchParams.get("search") || "";
     const category = url.searchParams.get("category") || "";
+    const owner = url.searchParams.get("owner") || "";
 
-    const result = await getPublishedRepos({ page, pageSize, sort, search, category });
+    const result = await getPublishedRepos({ page, pageSize, sort, search, category, owner });
     return apiSuccess(result);
   } catch (error) {
     console.error("GET /api/v1/repos error:", error);

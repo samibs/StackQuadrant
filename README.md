@@ -18,11 +18,16 @@ A data-driven intelligence platform for evaluating AI developer tools, open-sour
 ### AI/LLM Ecosystem Directory
 - **Repository Evaluations** — Gartner-style analysis of AI/LLM GitHub repos (frameworks, agents, RAG, vector DBs, inference engines, etc.)
 - **Automated GitHub Metrics** — Stars, forks, contributors, weekly commits, releases synced every 6 hours
+- **Auto-Scoring** — Metrics-based quality scoring engine derives scores from GitHub data using logarithmic normalization with evidence text
 - **Quality Scoring** — 6 dimensions: Documentation Quality, Community Health, Maintenance Velocity, API Design/DX, Production Readiness, Ecosystem Integration
+- **Auto-Discovery** — Weekly GitHub Search API crawler finds and imports new AI/LLM repos across 10 categories
 - **10 Categories** — LLM Frameworks, Agent Frameworks, Fine-tuning Tools, RAG Libraries, Vector Databases, Inference Engines, Prompt Engineering, AI DevOps, Model Serving, Evaluation & Testing
+- **"Our Projects" Badge** — Floating right-side panel highlighting your own repos with gold/amber accent
 
 ### Vibe Coding Showcase
 - **Community Submissions** — Developers submit projects built with AI-assisted coding tools
+- **GitHub Auto-Fill** — Paste a GitHub URL and auto-import project name, description, tech stack, and builder info
+- **Optional Live URL** — Projects without a live presence (frameworks, CLIs, libraries) can be submitted without a project URL
 - **Email Verification** — Automated verification flow before admin review
 - **Quality Scoring** — Projects rated on: Does it work? Code quality? Is it shipped?
 - **Built-With Pages** — Browse projects filtered by the AI tool used to build them
@@ -33,6 +38,7 @@ A data-driven intelligence platform for evaluating AI developer tools, open-sour
 - **Command Palette** — `Cmd+K` / `Ctrl+K` search across tools, repos, showcase projects, quadrants, benchmarks, and stacks
 - **Dark/Light Theme** — Intelligence dashboard aesthetic with theme toggle
 - **Responsive Layout** — Scales from mobile phones to 34"+ ultrawide monitors
+- **Repos Page** — Full-viewport layout with category sidebar, dense card grid, owner-highlighted repos
 - **Admin Dashboard** — Full CRUD for managing all content, repo syncing, showcase moderation
 - **Evaluation Methodology** — Transparent scoring process documentation at `/methodology`
 
@@ -46,8 +52,8 @@ A data-driven intelligence platform for evaluating AI developer tools, open-sour
 - **Auth**: JWT (jose + bcryptjs)
 - **Search**: cmdk command palette
 - **Email**: Nodemailer (Zoho SMTP)
-- **GitHub Sync**: Native fetch against GitHub REST API v3 with rate limit tracking
-- **Process Manager**: PM2 with cron scheduling for background sync
+- **GitHub Integration**: Native fetch against GitHub REST API v3 — sync, discovery, and showcase auto-fill
+- **Process Manager**: PM2 with cron scheduling for metrics sync (6h) and repo discovery (weekly)
 - **Typography**: JetBrains Mono (data) + Inter (UI)
 
 ## Quick Start
@@ -79,6 +85,10 @@ npm run db:push
 
 # Seed with sample data (15 AI tools, benchmarks, stacks)
 npm run db:seed
+
+# Seed AI/LLM repos and auto-score them
+npx tsx scripts/seed-repos.ts
+npm run db:score
 
 # Start development server
 npm run dev
@@ -129,7 +139,7 @@ src/
 │       ├── subscribers/            # Newsletter signup
 │       └── admin/                  # Admin CRUD endpoints
 ├── components/
-│   ├── layout/                     # Header, Panel, ThemeProvider
+│   ├── layout/                     # Header, Panel, ThemeProvider, OurProjectsBadge
 │   ├── visualizations/             # ScoreRing, RadarChart, QuadrantChart, ScoreBar, Sparkline
 │   ├── seo/                        # JSON-LD structured data
 │   └── ui/                         # Tooltip, InfoIcon, Skeleton, CommandPalette, Breadcrumb
@@ -141,7 +151,10 @@ src/
 ├── styles/
 │   └── tokens.css                  # Design tokens (dark/light themes)
 └── scripts/
-    └── github-sync-worker.ts       # Background GitHub metrics sync (PM2 cron)
+    ├── github-sync-worker.ts       # Background GitHub metrics sync (PM2 cron, every 6h)
+    ├── discover-repos.ts           # GitHub Search API repo discovery (PM2 cron, weekly)
+    ├── seed-repos.ts               # Curated AI/LLM repo seeder with live metrics
+    └── score-repos.ts              # Auto-scoring engine (metrics → quality scores)
 ```
 
 ## Scoring System
@@ -186,12 +199,13 @@ Community projects are rated on three criteria (each 0-10):
 | GET | `/api/v1/benchmarks/:slug` | Benchmark with results |
 | GET | `/api/v1/stacks` | List published stacks |
 | GET | `/api/v1/stacks/:slug` | Stack with tools and metrics |
-| GET | `/api/v1/repos` | List published repos (paginated, filterable by category) |
+| GET | `/api/v1/repos` | List published repos (paginated, filterable by category/owner) |
 | GET | `/api/v1/repos/:slug` | Repo detail with scores and GitHub metrics |
 | GET | `/api/v1/repos/categories` | Repo categories with counts |
 | GET | `/api/v1/showcase` | List published showcase projects |
 | GET | `/api/v1/showcase/built-with/:toolSlug` | Projects built with a specific tool |
-| POST | `/api/v1/showcase/submit` | Submit a project (rate limited: 3/hr) |
+| POST | `/api/v1/showcase/submit` | Submit a project (rate limited: 3/hr, live URL optional) |
+| GET | `/api/v1/showcase/github-info?url=` | Fetch GitHub repo info for form auto-fill |
 | GET | `/api/v1/showcase/verify?token=` | Email verification callback |
 | GET | `/api/v1/search` | Search index for command palette |
 | POST | `/api/v1/subscribers` | Newsletter signup |
@@ -232,23 +246,61 @@ Community projects are rated on three criteria (each 0-10):
 npm run db:generate    # Generate migration files
 npm run db:migrate     # Run migrations
 npm run db:push        # Push schema (dev mode)
-npm run db:seed        # Seed sample data
+npm run db:seed        # Seed sample data (tools, benchmarks, stacks)
+npm run db:score       # Auto-score repos from GitHub metrics
 npm run db:studio      # Open Drizzle Studio
 ```
 
-## GitHub Sync
+## GitHub Integration
 
+### Metrics Sync
 The platform automatically syncs GitHub metrics for all repositories every 6 hours via a PM2 cron job. You can also trigger manual syncs through the admin API.
 
 ```bash
 # Manual sync
 npx tsx scripts/github-sync-worker.ts
+```
 
-# PM2 manages the schedule (see ecosystem.config.js)
+### Repo Discovery
+A weekly discovery script searches GitHub for new AI/LLM repositories across 10 categories using the GitHub Search API, deduplicates against existing entries, and imports new repos with full metrics.
+
+```bash
+# Manual discovery run
+npx tsx scripts/discover-repos.ts
+
+# Auto-score all repos after discovery
+npm run db:score
+```
+
+### Repo Seeding
+Seed curated AI/LLM repos with live GitHub metrics:
+
+```bash
+npx tsx scripts/seed-repos.ts
+```
+
+### PM2 Schedule
+```bash
 pm2 start ecosystem.config.js
+# Runs: stackquadrant (app), github-sync (every 6h), repo-discovery (weekly Sunday 3am)
 ```
 
 Required: Set `GITHUB_TOKEN` in your `.env` for higher rate limits (5,000 requests/hour authenticated vs 60/hour unauthenticated).
+
+## Repo Auto-Scoring
+
+The auto-scoring engine (`scripts/score-repos.ts`) derives quality scores from GitHub metrics using a transparent methodology:
+
+| Dimension | Key Signals | Weight |
+|-----------|------------|--------|
+| Documentation Quality | Docs site, description, stars proxy, contributors | 20% |
+| Community Health | Stars, contributors, watchers, forks, issue ratio | 20% |
+| API Design & DX | Stars/issues ratio, typed language, license, docs | 20% |
+| Maintenance Velocity | Last commit, weekly commits, releases, age | 15% |
+| Production Readiness | Battle-tested stars, peer review, versioning, license | 15% |
+| Ecosystem Integration | Forks, language ecosystem, license, adoption | 10% |
+
+Scores use logarithmic normalization for wide-range metrics and linear/freshness functions for time-based signals. Each score includes evidence text explaining the contributing factors.
 
 ## Keyboard Shortcuts
 

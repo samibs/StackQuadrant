@@ -95,8 +95,8 @@ export default function HelpPage() {
                 { name: "Quadrants", href: "/quadrants", desc: "Interactive 2D charts positioning tools into four regions: Leaders, Visionaries, Challengers, and Niche Players. Click any dot to view the tool." },
                 { name: "Benchmarks", href: "/benchmarks", desc: "Structured benchmark results for specific AI coding tasks. Compare tools side-by-side on real-world tasks." },
                 { name: "Stacks", href: "/stacks", desc: "Evaluate tool combinations for specific workflows. Stacks are rated by how well the tools work together." },
-                { name: "Repos", href: "/repos", desc: "AI/LLM Ecosystem Directory. Browse and filter open-source repos by category (frameworks, agents, RAG, vector DBs, etc.) with automated GitHub metrics." },
-                { name: "Showcase", href: "/showcase", desc: "Vibe Coding Showcase. Community-submitted projects built with AI tools. Submit your own project and get quality-scored by our team." },
+                { name: "Repos", href: "/repos", desc: "AI/LLM Ecosystem Directory. Browse and filter open-source repos by category with automated GitHub metrics, auto-generated quality scores, and weekly discovery of new repos." },
+                { name: "Showcase", href: "/showcase", desc: "Vibe Coding Showcase. Community-submitted projects built with AI tools. Auto-fill from GitHub, submit without a live URL for libraries/CLIs, and get quality-scored." },
                 { name: "Best For", href: "/best-for", desc: "Find the right AI tool for your use case — rapid prototyping, enterprise, learning, open-source, and more." },
                 { name: "Stack Builder", href: "/stack-builder", desc: "Interactive wizard to compose a custom tool stack, assign roles, and analyze strengths and gaps." },
                 { name: "Methodology", href: "/methodology", desc: "Detailed explanation of our evaluation process, scoring criteria, and update cadence." },
@@ -164,6 +164,44 @@ export default function HelpPage() {
             </div>
           </Panel>
 
+          <Panel title="Repo Quality Scoring">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>Repository quality scores are <strong style={{ color: "var(--text-primary)" }}>auto-generated</strong> from GitHub metrics using a transparent methodology:</p>
+              {[
+                { name: "Documentation Quality (20%)", desc: "Docs site presence, description quality, stars as proxy for doc investment, contributor count." },
+                { name: "Community Health (20%)", desc: "Stars, contributors, watchers, forks, and open issue ratio relative to popularity." },
+                { name: "API Design & DX (20%)", desc: "Stars-to-issues ratio, typed language bonus, documentation site, permissive license." },
+                { name: "Maintenance Velocity (15%)", desc: "Last commit freshness, weekly commits, release cadence, repo maturity." },
+                { name: "Production Readiness (15%)", desc: "Battle-tested usage, peer review count, versioned releases, license, age." },
+                { name: "Ecosystem Integration (10%)", desc: "Fork interest, language ecosystem popularity, license permissiveness, adoption." },
+              ].map((d) => (
+                <div key={d.name} style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                  <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "11px" }}>{d.name}</div>
+                  <p style={{ fontSize: "11px", marginTop: "2px" }}>{d.desc}</p>
+                </div>
+              ))}
+              <p style={{ fontSize: "11px" }}>Scores use logarithmic normalization for wide-range metrics. Each score includes evidence text visible on the repo detail page.</p>
+            </div>
+          </Panel>
+
+          <Panel title="Showcase Submission">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>Submit your AI-built project at <Link href="/showcase/submit" style={{ color: "var(--accent-primary)" }}>/showcase/submit</Link>.</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>GitHub Auto-Fill</div>
+                <p style={{ fontSize: "11px" }}>Paste your GitHub repo URL and click Import to auto-fill project name, description, tech stack (from languages and topics), and builder info.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>No Live URL Required</div>
+                <p style={{ fontSize: "11px" }}>Frameworks, CLI tools, and libraries without a live web presence can be submitted — the live project URL is optional.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Verification Flow</div>
+                <p style={{ fontSize: "11px" }}>Submit → verify your email → admin reviews → published. Quality-scored on: does it work, code quality, and shipped status.</p>
+              </div>
+            </div>
+          </Panel>
+
           <Panel title="Admin Guide">
             <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
               <p>Admins can manage all content through the <Link href="/admin/login" style={{ color: "var(--accent-primary)" }}>admin dashboard</Link>.</p>
@@ -197,6 +235,10 @@ export default function HelpPage() {
               <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
                 <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/showcase</code>
                 <span style={{ fontSize: "11px", marginLeft: "var(--space-2)" }}>— list published showcase projects</span>
+              </div>
+              <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
+                <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/showcase/github-info?url=</code>
+                <span style={{ fontSize: "11px", marginLeft: "var(--space-2)" }}>— fetch GitHub repo info for form auto-fill</span>
               </div>
               <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
                 <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/search</code>

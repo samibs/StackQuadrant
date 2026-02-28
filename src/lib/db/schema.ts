@@ -302,7 +302,7 @@ export const showcaseProjects = pgTable("showcase_projects", {
   name: varchar("name", { length: 300 }).notNull(),
   slug: varchar("slug", { length: 300 }).notNull().unique(),
   description: text("description").notNull(),
-  projectUrl: varchar("project_url", { length: 500 }).notNull(),
+  projectUrl: varchar("project_url", { length: 500 }),
   githubUrl: varchar("github_url", { length: 500 }),
   screenshotUrl: varchar("screenshot_url", { length: 500 }),
   techStack: jsonb("tech_stack").$type<string[]>().default([]),

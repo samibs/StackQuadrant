@@ -18,12 +18,10 @@ export async function POST(request: NextRequest) {
     const errors = collectErrors(
       validateString(name, "name", { max: 300 }),
       validateString(description, "description", { max: 5000 }),
-      validateUrl(projectUrl, "projectUrl"),
+      ...(projectUrl ? [validateUrl(projectUrl, "projectUrl")] : []),
       validateString(builderName, "builderName", { max: 200 }),
       validateString(builderEmail, "builderEmail", { max: 320 }),
     );
-
-    if (!projectUrl) errors.push({ field: "projectUrl", message: "projectUrl is required" });
     if (!builderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(builderEmail)) {
       errors.push({ field: "builderEmail", message: "Valid email is required" });
     }
@@ -38,7 +36,7 @@ export async function POST(request: NextRequest) {
       name,
       slug: slug || `project-${Date.now()}`,
       description,
-      projectUrl,
+      projectUrl: projectUrl || null,
       githubUrl: githubUrl || null,
       screenshotUrl: screenshotUrl || null,
       techStack: Array.isArray(techStack) ? techStack : [],

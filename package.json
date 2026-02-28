@@ -1,6 +1,6 @@
 {
   "name": "stackquadrant",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "npx tsx src/lib/db/seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:score": "npx tsx scripts/score-repos.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

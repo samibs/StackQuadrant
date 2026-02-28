@@ -141,11 +141,17 @@ a:hover {
   .dimension-badges-grid {
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
   }
+  .repos-page-layout {
+    grid-template-columns: 1fr !important;
+  }
   .repo-detail-grid {
     grid-template-columns: 1fr !important;
   }
   .showcase-detail-grid {
     grid-template-columns: 1fr !important;
+  }
+  .our-projects-badge {
+    display: none !important;
   }
 }
 

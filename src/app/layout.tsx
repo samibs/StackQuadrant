@@ -11,6 +11,7 @@ import { Header } from "@/components/layout/header";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
 import { Footer } from "@/components/layout/footer";
+import { OurProjectsBadge } from "@/components/layout/our-projects-badge";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://stackquadrant.com";
 
@@ -80,6 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <Footer />
+          <OurProjectsBadge />
         </ThemeProvider>
       </body>
     </html>
