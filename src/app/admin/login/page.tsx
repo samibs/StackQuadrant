@@ -29,8 +29,6 @@ export default function AdminLoginPage() {
         return;
       }
 
-      localStorage.setItem("sq-admin-token", data.data.token);
-      localStorage.setItem("sq-admin-expires", data.data.expiresAt);
       router.push("/admin");
     } catch {
       setError("Network error. Please try again.");
@@ -96,6 +94,7 @@ export default function AdminLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
               style={{
                 width: "100%",
                 padding: "8px 10px",
@@ -129,6 +128,7 @@ export default function AdminLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
               style={{
                 width: "100%",
                 padding: "8px 10px",

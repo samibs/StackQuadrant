@@ -400,14 +400,20 @@ async function seed() {
   console.log(`  Inserted ${stackToolData.length} stack tool associations`);
 
   // 7. Admin user
-  const passwordHash = await hash("admin123!", 12);
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@stackquadrant.com";
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword || adminPassword.length < 12) {
+    console.error("  ERROR: Set ADMIN_PASSWORD env var (min 12 chars) before seeding.");
+    process.exit(1);
+  }
+  const passwordHash = await hash(adminPassword, 12);
   await db.insert(adminUsers).values({
-    email: "admin@stackquadrant.dev",
+    email: adminEmail,
     passwordHash,
     name: "Admin",
     role: "admin",
   });
-  console.log("  Inserted admin user (admin@stackquadrant.dev / admin123!)");
+  console.log(`  Inserted admin user (${adminEmail})`);
 
   console.log("\nSeed complete!");
   process.exit(0);

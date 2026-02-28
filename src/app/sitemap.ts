@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { tools, quadrants, benchmarks, stacks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://stackquadrant.dev";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://stackquadrant.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [publishedTools, publishedQuadrants, publishedBenchmarks, publishedStacks] = await Promise.all([

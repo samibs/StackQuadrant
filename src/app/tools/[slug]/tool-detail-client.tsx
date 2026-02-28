@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Panel } from "@/components/layout/panel";
 import { ScoreRing } from "@/components/visualizations/score-ring";
@@ -16,6 +17,15 @@ interface ToolDetail {
   category: string;
   vendor: string | null;
   overallScore: number | null;
+  pricingModel: string | null;
+  pricingTier: string | null;
+  license: string | null;
+  githubUrl: string | null;
+  documentationUrl: string | null;
+  githubStars: number | null;
+  communitySize: string | null;
+  tags: string[] | null;
+  updatedAt: string | Date | null;
   scores: Array<{
     dimension: string;
     dimensionSlug: string;
@@ -35,19 +45,21 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
     description: s.dimensionDescription,
   }));
 
+  const tags = (tool.tags || []) as string[];
+
   return (
     <div style={{ padding: "var(--grid-gap)" }}>
       {/* Header */}
       <div
-        className="flex items-start justify-between px-[var(--space-4)] py-[var(--space-3)] mb-[var(--grid-gap)]"
+        className="tool-detail-header flex items-start justify-between px-[var(--space-4)] py-[var(--space-3)] mb-[var(--grid-gap)]"
         style={{
           background: "var(--bg-surface)",
           border: "1px solid var(--border-default)",
           borderRadius: "var(--radius-sm)",
         }}
       >
-        <div>
-          <div className="flex items-center gap-[var(--space-2)]">
+        <div style={{ flex: 1 }}>
+          <div className="flex items-center gap-[var(--space-2)] flex-wrap">
             <h1 style={{ fontFamily: "var(--font-sans)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)" }}>
               {tool.name}
             </h1>
@@ -63,11 +75,25 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
             >
               {tool.category}
             </span>
+            {tool.pricingModel && (
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "10px",
+                  padding: "2px 8px",
+                  borderRadius: "var(--radius-sm)",
+                  background: tool.pricingModel === "free" ? "rgba(22,163,74,0.15)" : tool.pricingModel === "freemium" ? "rgba(59,130,246,0.15)" : "rgba(234,179,8,0.15)",
+                  color: tool.pricingModel === "free" ? "var(--score-high)" : tool.pricingModel === "freemium" ? "#3b82f6" : "var(--score-mid)",
+                }}
+              >
+                {tool.pricingModel}
+              </span>
+            )}
           </div>
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
             {tool.description}
           </p>
-          <div className="flex items-center gap-[var(--space-4)] mt-[var(--space-2)]">
+          <div className="flex items-center gap-[var(--space-4)] mt-[var(--space-2)] flex-wrap">
             {tool.vendor && (
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>
                 {tool.vendor}
@@ -75,12 +101,30 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
             )}
             {tool.websiteUrl && (
               <a href={tool.websiteUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>
-                {tool.websiteUrl}
+                Website
               </a>
+            )}
+            {tool.documentationUrl && (
+              <a href={tool.documentationUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+                Docs
+              </a>
+            )}
+            {tool.githubUrl && (
+              <a href={tool.githubUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+                GitHub {tool.githubStars ? `(${(tool.githubStars / 1000).toFixed(1)}K)` : ""}
+              </a>
+            )}
+            <Link href={`/compare?tools=${tool.slug}`} style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>
+              Compare &rarr;
+            </Link>
+            {tool.updatedAt && (
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
+                Last evaluated: {new Date(tool.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
             )}
           </div>
         </div>
-        <div className="relative" style={{ width: "72px", height: "72px" }}>
+        <div className="relative" style={{ width: "72px", height: "72px", flexShrink: 0 }}>
           <ScoreRing
             score={tool.overallScore || 0}
             size={72}
@@ -92,7 +136,7 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
       </div>
 
       {/* Two-column layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "var(--grid-gap)" }}>
+      <div className="tool-detail-grid" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "var(--grid-gap)" }}>
         {/* Left column */}
         <div className="flex flex-col" style={{ gap: "var(--grid-gap)" }}>
           {/* Radar Chart */}
@@ -101,6 +145,52 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
               <RadarChart scores={validScores} size={280} />
             </div>
           </Panel>
+
+          {/* Pricing & Licensing */}
+          {(tool.pricingTier || tool.license) && (
+            <Panel title="Pricing & Licensing">
+              {tool.pricingTier && (
+                <div style={{ marginBottom: "var(--space-2)" }}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                    Pricing
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-primary)", lineHeight: 1.6 }}>
+                    {tool.pricingTier}
+                  </div>
+                </div>
+              )}
+              {tool.license && (
+                <div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+                    License
+                  </div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-primary)" }}>
+                    {tool.license}
+                  </div>
+                </div>
+              )}
+            </Panel>
+          )}
+
+          {/* Community */}
+          {(tool.communitySize || tool.githubStars) && (
+            <Panel title="Community">
+              <div className="flex gap-[var(--space-4)]">
+                {tool.communitySize && (
+                  <div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Developers</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{tool.communitySize}</div>
+                  </div>
+                )}
+                {tool.githubStars && (
+                  <div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>GitHub Stars</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 600, color: "var(--text-primary)" }}>{tool.githubStars.toLocaleString()}</div>
+                  </div>
+                )}
+              </div>
+            </Panel>
+          )}
 
           {/* Benchmark Participations */}
           {tool.benchmarkResults.length > 0 && (
@@ -128,6 +218,29 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
 
         {/* Right column */}
         <div className="flex flex-col" style={{ gap: "var(--grid-gap)" }}>
+          {/* Tags */}
+          {tags.length > 0 && (
+            <Panel title="Features">
+              <div className="flex flex-wrap gap-[var(--space-1)]">
+                {tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    href={`/matrix?tag=${encodeURIComponent(tag)}`}
+                    style={{
+                      fontFamily: "var(--font-mono)", fontSize: "10px",
+                      padding: "3px 8px", background: "var(--bg-elevated)",
+                      border: "1px solid var(--border-default)",
+                      borderRadius: "var(--radius-sm)", color: "var(--text-secondary)",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {tag}
+                  </Link>
+                ))}
+              </div>
+            </Panel>
+          )}
+
           {/* Dimension Scores */}
           <Panel
             title="Dimension Scores"
@@ -196,8 +309,97 @@ export function ToolDetailClient({ tool }: { tool: ToolDetail }) {
               </div>
             </Panel>
           )}
+
+          {/* Subscribe touchpoint */}
+          <Panel title="Stay Updated">
+            <ToolSubscribeForm toolName={tool.name} />
+          </Panel>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ToolSubscribeForm({ toolName }: { toolName: string }) {
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/v1/subscribers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok || res.status === 409) {
+        form.reset();
+        setStatus("sent");
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  if (status === "sent") {
+    return (
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--score-high)" }}>
+        Check your email to confirm your subscription.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}>
+        Get notified when {toolName}&apos;s scores are updated.
+      </p>
+      {status === "error" && (
+        <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--score-low)", marginBottom: "var(--space-1)" }}>
+          Something went wrong. Try again.
+        </p>
+      )}
+      <form onSubmit={handleSubmit} className="flex gap-[var(--space-1)]">
+        <input
+          name="email"
+          type="email"
+          placeholder="you@company.com"
+          required
+          style={{
+            flex: 1,
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            padding: "5px 10px",
+            background: "var(--bg-input)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--text-primary)",
+            outline: "none",
+          }}
+        />
+        <button
+          type="submit"
+          disabled={status === "sending"}
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            fontWeight: 600,
+            padding: "5px 12px",
+            background: "var(--accent-primary)",
+            border: "none",
+            borderRadius: "var(--radius-sm)",
+            color: "#fff",
+            cursor: status === "sending" ? "wait" : "pointer",
+            opacity: status === "sending" ? 0.7 : 1,
+          }}
+        >
+          {status === "sending" ? "..." : "Subscribe"}
+        </button>
+      </form>
     </div>
   );
 }

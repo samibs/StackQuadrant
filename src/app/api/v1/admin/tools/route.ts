@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/utils/auth";
 import { db } from "@/lib/db";
 import { tools } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
+import { validateString, validateSlug, validateUrl, validateNumber, validateEnum, collectErrors } from "@/lib/utils/validate";
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin(request);
@@ -26,13 +27,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, slug, description, websiteUrl, logoUrl, category, vendor, status, overallScore } = body;
 
-    if (!name || !slug || !description || !category) {
-      return apiError("VALIDATION_FAILED", "Missing required fields", 400, [
-        ...(!name ? [{ field: "name", message: "Name is required" }] : []),
-        ...(!slug ? [{ field: "slug", message: "Slug is required" }] : []),
-        ...(!description ? [{ field: "description", message: "Description is required" }] : []),
-        ...(!category ? [{ field: "category", message: "Category is required" }] : []),
-      ]);
+    const errors = collectErrors(
+      validateString(name, "name", { max: 200 }),
+      validateSlug(slug),
+      validateString(description, "description", { max: 5000 }),
+      validateString(category, "category", { max: 100 }),
+      validateString(vendor, "vendor", { max: 200, required: false }),
+      validateUrl(websiteUrl, "websiteUrl"),
+      validateUrl(logoUrl, "logoUrl"),
+      validateEnum(status, "status", ["draft", "published", "archived"], { required: false }),
+      validateNumber(overallScore, "overallScore", { min: 0, max: 10 }),
+    );
+
+    if (errors.length > 0) {
+      return apiError("VALIDATION_FAILED", "Invalid input", 400, errors);
     }
 
     const [tool] = await db.insert(tools).values({

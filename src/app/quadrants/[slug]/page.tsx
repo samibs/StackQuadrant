@@ -3,6 +3,7 @@ import { getQuadrantBySlug } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import { QuadrantDetailClient } from "./quadrant-detail-client";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,9 @@ export default async function QuadrantDetailPage({ params }: { params: Promise<{
   return (
     <>
       <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Quadrants", href: "/quadrants" }, { name: quadrant.title, href: `/quadrants/${slug}` }]} />
+      <div style={{ padding: "var(--grid-gap) var(--grid-gap) 0" }}>
+        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Quadrants", href: "/quadrants" }, { label: quadrant.title }]} />
+      </div>
       <QuadrantDetailClient quadrant={quadrant} />
     </>
   );

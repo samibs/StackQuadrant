@@ -10,6 +10,14 @@ export const tools = pgTable("tools", {
   logoUrl: varchar("logo_url", { length: 500 }),
   category: varchar("category", { length: 100 }).notNull(),
   vendor: varchar("vendor", { length: 200 }),
+  pricingModel: varchar("pricing_model", { length: 50 }),
+  pricingTier: varchar("pricing_tier", { length: 100 }),
+  license: varchar("license", { length: 100 }),
+  githubUrl: varchar("github_url", { length: 500 }),
+  documentationUrl: varchar("documentation_url", { length: 500 }),
+  githubStars: integer("github_stars"),
+  communitySize: varchar("community_size", { length: 100 }),
+  tags: jsonb("tags").$type<string[]>().default([]),
   status: varchar("status", { length: 20 }).notNull().default("draft"),
   overallScore: decimal("overall_score", { precision: 3, scale: 1 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -132,6 +140,20 @@ export const subscribers = pgTable("subscribers", {
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
   unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const blogPosts = pgTable("blog_posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: varchar("title", { length: 300 }).notNull(),
+  slug: varchar("slug", { length: 300 }).notNull().unique(),
+  excerpt: text("excerpt").notNull(),
+  content: text("content").notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  status: varchar("status", { length: 20 }).notNull().default("draft"),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const adminUsers = pgTable("admin_users", {

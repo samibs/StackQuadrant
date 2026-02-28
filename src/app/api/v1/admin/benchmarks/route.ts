@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/utils/auth";
 import { db } from "@/lib/db";
 import { benchmarks } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
+import { validateString, validateSlug, validateEnum, collectErrors } from "@/lib/utils/validate";
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin(request);
@@ -26,8 +27,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, slug, description, category, methodology, metrics, status } = body;
 
-    if (!title || !slug || !description || !category || !methodology || !metrics) {
-      return apiError("VALIDATION_FAILED", "Missing required fields", 400);
+    const errors = collectErrors(
+      validateString(title, "title", { max: 200 }),
+      validateSlug(slug),
+      validateString(description, "description", { max: 5000 }),
+      validateString(category, "category", { max: 100 }),
+      validateString(methodology, "methodology", { max: 10000 }),
+      validateEnum(status, "status", ["draft", "published", "archived"], { required: false }),
+    );
+    if (!metrics || typeof metrics !== "object") {
+      errors.push({ field: "metrics", message: "metrics is required and must be an object" });
+    }
+    if (errors.length > 0) {
+      return apiError("VALIDATION_FAILED", "Invalid input", 400, errors);
     }
 
     const [created] = await db.insert(benchmarks).values({

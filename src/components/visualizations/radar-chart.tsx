@@ -10,7 +10,10 @@ interface RadarChartProps {
 }
 
 export function RadarChart({ scores, size = 240, maxScore = 10 }: RadarChartProps) {
-  const center = size / 2;
+  // Add padding so labels fit within bounds (no clipping by overflow:hidden parents)
+  const padding = 30;
+  const totalSize = size + padding * 2;
+  const center = totalSize / 2;
   const radius = (size - 60) / 2;
   const angleStep = (2 * Math.PI) / scores.length;
 
@@ -27,7 +30,7 @@ export function RadarChart({ scores, size = 240, maxScore = 10 }: RadarChartProp
 
   // Calculate label positions for HTML overlay
   const labelPositions = scores.map((s, i) => {
-    const labelPoint = getPoint(i, maxScore + 2.5);
+    const labelPoint = getPoint(i, maxScore + 2);
     const angle = angleStep * i - Math.PI / 2;
     const cosA = Math.cos(angle);
     const textAlign = Math.abs(cosA) < 0.1 ? "center" : cosA > 0 ? "left" : "right";
@@ -35,8 +38,8 @@ export function RadarChart({ scores, size = 240, maxScore = 10 }: RadarChartProp
   });
 
   return (
-    <div style={{ position: "relative", width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <div style={{ position: "relative", width: totalSize, height: totalSize }}>
+      <svg width={totalSize} height={totalSize} viewBox={`0 0 ${totalSize} ${totalSize}`}>
         {/* Grid circles */}
         {gridLevels.map((level) => (
           <polygon

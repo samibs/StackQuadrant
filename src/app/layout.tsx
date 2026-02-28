@@ -10,8 +10,9 @@ import { ThemeProvider } from "@/components/layout/theme-provider";
 import { Header } from "@/components/layout/header";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
+import { Footer } from "@/components/layout/footer";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://stackquadrant.dev";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://stackquadrant.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -40,6 +41,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
     googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large" },
+  },
+  icons: {
+    icon: "/favicon.svg",
   },
   alternates: {
     canonical: BASE_URL,
@@ -75,6 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main style={{ paddingTop: "var(--header-height)", minHeight: "calc(100vh - var(--header-height))" }}>
             {children}
           </main>
+          <Footer />
         </ThemeProvider>
       </body>
     </html>

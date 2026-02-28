@@ -3,6 +3,7 @@ import { getToolBySlug } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import { ToolDetailClient } from "./tool-detail-client";
 import { SoftwareApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,9 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
   return (
     <>
       <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Matrix", href: "/matrix" }, { name: tool.name, href: `/tools/${slug}` }]} />
+      <div style={{ padding: "var(--grid-gap) var(--grid-gap) 0" }}>
+        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Matrix", href: "/matrix" }, { label: tool.name }]} />
+      </div>
       <SoftwareApplicationJsonLd
         name={tool.name}
         description={tool.description}

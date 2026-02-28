@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/utils/auth";
 import { db } from "@/lib/db";
 import { tools } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { validateString, validateSlug, validateUrl, validateNumber, validateEnum, collectErrors } from "@/lib/utils/validate";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin(request);
@@ -33,6 +34,23 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     if (body.version !== undefined && body.version !== existing.version) {
       return apiError("CONFLICT", "Tool has been modified by another user", 409);
+    }
+
+    // Validate only provided fields (partial update)
+    const errors = collectErrors(
+      body.name !== undefined ? validateString(body.name, "name", { max: 200 }) : null,
+      body.slug !== undefined ? validateSlug(body.slug) : null,
+      body.description !== undefined ? validateString(body.description, "description", { max: 5000 }) : null,
+      body.category !== undefined ? validateString(body.category, "category", { max: 100 }) : null,
+      body.vendor !== undefined ? validateString(body.vendor, "vendor", { max: 200, required: false }) : null,
+      body.websiteUrl !== undefined ? validateUrl(body.websiteUrl, "websiteUrl") : null,
+      body.logoUrl !== undefined ? validateUrl(body.logoUrl, "logoUrl") : null,
+      body.status !== undefined ? validateEnum(body.status, "status", ["draft", "published", "archived"]) : null,
+      body.overallScore !== undefined ? validateNumber(body.overallScore, "overallScore", { min: 0, max: 10 }) : null,
+    );
+
+    if (errors.length > 0) {
+      return apiError("VALIDATION_FAILED", "Invalid input", 400, errors);
     }
 
     const [updated] = await db.update(tools).set({

@@ -13,7 +13,7 @@ interface PanelProps {
 export function Panel({ title, actions, children, className = "", noPadding = false }: PanelProps) {
   return (
     <div
-      className={`overflow-hidden transition-colors duration-150 ${className}`}
+      className={`transition-colors duration-150 ${className}`}
       style={{
         background: "var(--bg-surface)",
         border: "1px solid var(--border-default)",

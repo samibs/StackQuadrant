@@ -53,6 +53,10 @@ logs/
 *.jpeg
 !public/screenshot-dashboard.png
 
+# deployment & infra (server-specific)
+deploy-nginx-ssl.sh
+ecosystem.config.js
+
 # framework config (editor/AI agent configs)
 .agents/
 .claude/
