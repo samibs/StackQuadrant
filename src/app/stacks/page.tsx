@@ -35,7 +35,7 @@ export default async function StacksPage() {
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-muted)" }}>No stacks evaluated yet.</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "var(--grid-gap)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: "var(--grid-gap)" }}>
           {stackList.map((stack) => (
             <Link
               key={stack.id}

@@ -39,7 +39,7 @@ export function RadarChart({ scores, size = 240, maxScore = 10 }: RadarChartProp
 
   return (
     <div style={{ position: "relative", width: totalSize, height: totalSize }}>
-      <svg width={totalSize} height={totalSize} viewBox={`0 0 ${totalSize} ${totalSize}`}>
+      <svg width={totalSize} height={totalSize} viewBox={`0 0 ${totalSize} ${totalSize}`} role="img" aria-label={`Capability profile radar chart showing ${scores.map(s => `${s.dimension}: ${s.score}`).join(", ")}`}>
         {/* Grid circles */}
         {gridLevels.map((level) => (
           <polygon

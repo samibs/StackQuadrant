@@ -43,7 +43,7 @@ export default async function QuadrantsPage() {
           </p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "var(--grid-gap)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))", gap: "var(--grid-gap)" }}>
           {quadrants.map((q) => (
             <Link
               key={q.id}

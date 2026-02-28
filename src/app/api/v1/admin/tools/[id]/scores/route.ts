@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/utils/api";
 import { requireAdmin } from "@/lib/utils/auth";
 import { db } from "@/lib/db";
-import { toolScores, dimensions } from "@/lib/db/schema";
+import { tools, toolScores, dimensions, scoreHistory, overallScoreHistory } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,7 +38,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id: toolId } = await params;
     const body = await request.json();
-    const { scores } = body as { scores: Array<{ dimensionId: string; score: number; evidence?: string }> };
+    const { scores, changeReason } = body as {
+      scores: Array<{ dimensionId: string; score: number; evidence?: string }>;
+      changeReason?: string;
+    };
 
     if (!scores || !Array.isArray(scores) || scores.length === 0 || scores.length > 50) {
       return apiError("VALIDATION_FAILED", "Scores must be a non-empty array (max 50)", 400);
@@ -57,12 +60,31 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     }
 
+    // Get current overall score before changes
+    const [currentTool] = await db.select({ overallScore: tools.overallScore }).from(tools).where(eq(tools.id, toolId));
+    const oldOverallScore = currentTool?.overallScore ? parseFloat(currentTool.overallScore) : null;
+
     const results = [];
     for (const s of scores) {
       const [existing] = await db.select().from(toolScores)
         .where(and(eq(toolScores.toolId, toolId), eq(toolScores.dimensionId, s.dimensionId)));
 
       if (existing) {
+        const oldScore = parseFloat(existing.score);
+        const newScore = Number(s.score);
+
+        // Archive to history if score changed
+        if (Math.abs(oldScore - newScore) >= 0.05) {
+          await db.insert(scoreHistory).values({
+            toolId,
+            dimensionId: s.dimensionId,
+            oldScore: existing.score,
+            newScore: newScore.toString(),
+            changeReason: changeReason || null,
+            changedBy: admin.email,
+          });
+        }
+
         const [updated] = await db.update(toolScores).set({
           score: s.score.toString(),
           evidence: s.evidence || existing.evidence,
@@ -79,6 +101,41 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           evaluatedBy: admin.email,
         }).returning();
         results.push(created);
+      }
+    }
+
+    // Recalculate overall score from weighted dimensions
+    const allScores = await db.select({
+      score: toolScores.score,
+      weight: dimensions.weight,
+    })
+      .from(toolScores)
+      .innerJoin(dimensions, eq(toolScores.dimensionId, dimensions.id))
+      .where(eq(toolScores.toolId, toolId));
+
+    if (allScores.length > 0) {
+      let weightedSum = 0;
+      let totalWeight = 0;
+      for (const s of allScores) {
+        const w = parseFloat(s.weight);
+        weightedSum += parseFloat(s.score) * w;
+        totalWeight += w;
+      }
+      const newOverallScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
+      const roundedOverall = Math.round(newOverallScore * 10) / 10;
+
+      await db.update(tools).set({
+        overallScore: roundedOverall.toString(),
+        updatedAt: new Date(),
+      }).where(eq(tools.id, toolId));
+
+      // Archive overall score change
+      if (oldOverallScore !== null && Math.abs(oldOverallScore - roundedOverall) >= 0.05) {
+        await db.insert(overallScoreHistory).values({
+          toolId,
+          oldScore: oldOverallScore.toString(),
+          newScore: roundedOverall.toString(),
+        });
       }
     }
 

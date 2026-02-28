@@ -1,0 +1,160 @@
+# CLAUDE.md Summary (Context-Optimized)
+
+> This is the condensed version (~2K tokens) for active context. Full details: CLAUDE.md
+
+---
+
+## Philosophy (Core)
+
+- **ONLY REAL LOGIC**: No placeholders, TODOs, mocks, stubs, "coming soon"
+- **Three-Layer Completeness**: Every feature verified across DB → Backend → Frontend
+- **PRD-First**: All projects start in `genesis/` folder
+- **Cold-Blooded**: No flattery, no assumptions, production-ready only
+- **Zero Tolerance**: Banned patterns trigger immediate rejection
+
+---
+
+## Banned Patterns (Auto-Reject)
+
+```
+TODO, FIXME, HACK, XXX, PLACEHOLDER, STUB, MOCK, COMING SOON,
+NOT IMPLEMENTED, WIP, TEMPORARY, TEMP, Lorem ipsum,
+NotImplementedError, NotImplementedException, empty function bodies,
+@ts-ignore (without justification), hardcoded credentials,
+pass (Python without logic), throw new Error("Not implemented")
+```
+
+---
+
+## Genesis Workflow
+
+```
+1. CREATE PRD: /prd "feature" → saves to genesis/
+2. IMPLEMENT: /go → validates PRDs, generates stories, implements all
+3. VALIDATE: /layer-check → confirms DB + Backend + Frontend
+```
+
+---
+
+## Three-Layer Checklist
+
+| Layer | Must Have |
+|-------|-----------|
+| **DATABASE** | Migration works, rollback tested, constraints in place |
+| **BACKEND** | Endpoints work, tests pass, auth enforced, input validated |
+| **FRONTEND** | REAL API (no mocks), all states, accessible, responsive |
+
+---
+
+## Security Essentials
+
+- No tokens in localStorage (memory only for SPAs)
+- Refresh tokens: HttpOnly + Secure + SameSite=Strict cookies
+- JWT: RS256/ES256 only, validate all claims
+- Credentials: 600 permissions, excluded from git
+- LoggerService: Sanitize all sensitive data before logging
+
+---
+
+## Production Scripts Required
+
+```
+scripts/
+├── start-production.sh
+├── stop-production.sh
+├── restart-production.sh
+└── status-production.sh
+```
+
+---
+
+## Key Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/go` | Main orchestrator - PRD to production |
+| `/prd` | Create new PRD |
+| `/layer-check` | Validate three layers |
+| `/context` | Manage context budget |
+| `/swarm` | Swarm coordination management |
+| `/explain` | Explain last agent action |
+| `/undo` | Revert last reversible action |
+| `/cost` | Token usage report |
+| `/health` | Framework self-diagnostic |
+| `/go --compliance=hipaa` | Enable HIPAA compliance rules |
+| `/forge` | **The Forge** - Full pipeline (validate+implement+test+audit+harvest) |
+| `/gosm` | Go semi-auto (recommended shortcut) |
+| `/goma` | Go autonomous mode |
+| `/blitz` | Lightning mode (parallel+TDD+semi-auto) |
+| `/gohm` | Harvest memory from project (`--push` to auto-commit) |
+| `/ship` | Pre-release pipeline (layer-check+security+release) |
+| `/nuke` | Clean slate (rollback+clean state) |
+| `/status` | Project status dashboard |
+| `/profile` | Session profile manager (default, blitz, cautious, autonomous) |
+| `/replay` | Re-run last execution |
+| `/analytics` | Agent usage analytics |
+| `/anvil` | **The Anvil** — 6-tier quality gate (T1-T6) |
+
+---
+
+## Agent Behavior Rules
+
+1. Check path validity before commands
+2. Use absolute paths
+3. Never assume file/folder existence
+4. Wrap modifications with `// AI MOD START` / `// AI MOD END`
+5. If repeating broken logic: output "Suggest Human Review"
+6. Summarize outputs (<500 tokens for sub-agent returns)
+7. Update scratchpad after major actions
+
+---
+
+## Context Discipline
+
+- **Before acting**: Do I have minimum context needed?
+- **After acting**: Summarize, update scratchpad, flag unneeded context
+- **Always**: Prefer concise outputs, reference files by path
+
+---
+
+## Current Session Scratchpad
+
+```
+### Focus: [Current story/task]
+### Phase: [Current phase]
+### Progress: [Checklist]
+### Decisions: [Key choices made]
+### Blockers: [Open issues]
+### Files Modified: [List]
+```
+
+---
+
+## Load More Context
+
+For detailed requirements, load specific sections:
+- Security details: `/context load security`
+- Migration strategy: `/context load migrations`
+- Full standards: Read CLAUDE.md directly
+
+---
+
+---
+
+## Framework Evolution (v1.8.0 - v1.9.0)
+
+- **Knowledge Exchange**: Cross-project knowledge harvesting and promotion
+- **Swarm Mode**: Self-organizing agent coordination (alternative to wave dispatch)
+- **DX Tooling**: `/explain`, `/undo`, `/cost`, `/health` commands
+- **Advanced Intelligence**: Semantic search, monorepo support, compliance presets (HIPAA/SOC2/GDPR)
+- **The Forge (46 Agents + 12 Shortcuts)** across quad platform (Claude Code, Copilot CLI, Cursor, Codex)
+- **The Anvil (v1.9.0.13)**: 6-tier quality gate (shell pre-flight, canary, self-adversarial, scope, contract, shadow tester)
+- **Codex Integration (v1.9.0.14)**: 4th platform via native Skills
+- **Session Observability (v1.9.0.15)**: Line attribution, session recording, named checkpoints, commit trailers, decision logging protocol
+- **Competitive Leap (v1.9.0.16)**: GitHub Actions CI, Agent Trace format, prompt capture, cost-aware routing, quality primer, rejection tracker with auto-rules, A2A protocol agent cards, arena mode, compliance-as-code (HIPAA/SOC2/GDPR), tamper-evident evidence collection
+- **OpenClaw-Inspired (v1.9.0.17)**: Heartbeat daemon (proactive monitoring), multi-channel notifications (Slack/Discord/desktop/terminal), developer preferences (auto-learned code style + framework detection + agent prompt injection)
+- **NASAB Integration**: Evidence-based gates, constraint classification, pattern detection, bidirectional iteration, dissent resolution
+
+---
+
+_Full reference: CLAUDE.md (framework-specific, ~270 lines) + docs/enterprise-standards.md (production patterns, ~1350 lines) | This summary: ~400 lines | Framework v1.9.0.17_

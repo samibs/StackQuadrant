@@ -47,7 +47,7 @@ export function CompareRadarChart({ tools, size = 320, maxScore = 10 }: CompareR
   return (
     <div>
       <div style={{ position: "relative", width: size, height: size, margin: "0 auto" }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Comparison radar chart for ${tools.map(t => t.name).join(", ")}`}>
           {/* Grid */}
           {gridLevels.map((level) => (
             <polygon

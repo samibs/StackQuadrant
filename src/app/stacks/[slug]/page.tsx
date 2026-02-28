@@ -59,7 +59,7 @@ export default async function StackDetailPage({ params }: { params: Promise<{ sl
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--grid-gap)" }}>
+      <div className="stack-detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--grid-gap)" }}>
         {/* Tools in stack */}
         <Panel title="Stack Composition">
           <div className="flex flex-col gap-[var(--space-2)]">

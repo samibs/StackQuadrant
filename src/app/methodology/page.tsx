@@ -116,7 +116,7 @@ export default function MethodologyPage() {
 
       {/* Scoring Process */}
       <Panel title="How We Score">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-3)" }}>
+        <div className="methodology-process-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-3)" }}>
           {[
             { step: "01", title: "Benchmark Tasks", desc: "Each tool is tested against standardized real-world tasks: multi-file refactoring, bug detection, greenfield scaffolding, context window stress tests, and test generation. Tasks are run 3 times per tool; best result is used." },
             { step: "02", title: "Expert Evaluation", desc: "Experienced developers rate each tool across six dimensions on a 0–10 scale, providing evidence for each score. Evaluations are cross-reviewed by a second evaluator for consistency." },

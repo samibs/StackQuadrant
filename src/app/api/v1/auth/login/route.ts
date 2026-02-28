@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
-    const [user] = await db.select().from(adminUsers).where(eq(adminUsers.email, email));
+    const [user] = await db.select().from(adminUsers).where(eq(adminUsers.email, email.toLowerCase().trim()));
     if (!user) {
       return apiError("UNAUTHORIZED", "Invalid email or password", 401);
     }

@@ -96,7 +96,10 @@ export function CompareClient({
           );
         })}
         {selectedSlugs.length < 4 && (
+          <>
+          <label htmlFor="compare-add-tool" className="sr-only">Add tool to comparison</label>
           <select
+            id="compare-add-tool"
             onChange={(e) => { if (e.target.value) { addTool(e.target.value); e.target.value = ""; } }}
             style={{
               fontFamily: "var(--font-mono)", fontSize: "11px",
@@ -111,6 +114,7 @@ export function CompareClient({
               <option key={t.slug} value={t.slug}>{t.name}</option>
             ))}
           </select>
+          </>
         )}
       </div>
 
