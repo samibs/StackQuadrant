@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ScoreBar } from "@/components/visualizations/score-bar";
 import { ScoreRing } from "@/components/visualizations/score-ring";
@@ -14,16 +15,29 @@ interface ToolData {
   category: string;
   vendor: string | null;
   overallScore: number | null;
+  tags: string[] | null;
+  pricingModel: string | null;
+  updatedAt: string | Date | null;
   scores: Array<{ dimension: string; dimensionSlug: string; dimensionDescription: string | null; dimensionWeight: number | null; score: number | null }>;
 }
 
 export function MatrixClient({ tools }: { tools: ToolData[] }) {
+  const router = useRouter();
   const [sortBy, setSortBy] = useState("overallScore");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [compareSelection, setCompareSelection] = useState<string[]>([]);
+
+  const toggleCompare = (slug: string) => {
+    setCompareSelection((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : prev.length < 4 ? [...prev, slug] : prev
+    );
+  };
 
   const categories = useMemo(() => [...new Set(tools.map((t) => t.category))], [tools]);
+  const allTags = useMemo(() => [...new Set(tools.flatMap((t) => (t.tags || []) as string[]))].sort(), [tools]);
 
   const dimensions = useMemo(() => {
     if (tools.length === 0) return [];
@@ -37,6 +51,9 @@ export function MatrixClient({ tools }: { tools: ToolData[] }) {
     }
     if (search) {
       filtered = filtered.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
+    }
+    if (tagFilter) {
+      filtered = filtered.filter((t) => ((t.tags || []) as string[]).includes(tagFilter));
     }
     return [...filtered].sort((a, b) => {
       let aVal: number | null = null;
@@ -57,7 +74,7 @@ export function MatrixClient({ tools }: { tools: ToolData[] }) {
       if (bVal === null) return -1;
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
-  }, [tools, sortBy, sortDir, categoryFilter, search]);
+  }, [tools, sortBy, sortDir, categoryFilter, tagFilter, search]);
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -77,7 +94,7 @@ export function MatrixClient({ tools }: { tools: ToolData[] }) {
     <div style={{ padding: "var(--grid-gap)" }}>
       {/* Controls bar */}
       <div
-        className="flex items-center gap-[var(--space-2)] mb-[var(--grid-gap)] flex-wrap"
+        className="matrix-controls flex items-center gap-[var(--space-2)] mb-[var(--grid-gap)] flex-wrap"
         style={{
           padding: "var(--space-2) var(--space-3)",
           background: "var(--bg-surface)",
@@ -137,6 +154,39 @@ export function MatrixClient({ tools }: { tools: ToolData[] }) {
             </button>
           ))}
         </div>
+        <select
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          style={{
+            fontFamily: "var(--font-mono)", fontSize: "11px",
+            padding: "4px 8px", background: "var(--bg-elevated)",
+            border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)",
+            color: tagFilter ? "var(--text-primary)" : "var(--text-muted)", cursor: "pointer",
+          }}
+        >
+          <option value="">All features</option>
+          {allTags.map((tag) => (
+            <option key={tag} value={tag}>{tag}</option>
+          ))}
+        </select>
+        {compareSelection.length >= 2 && (
+          <button
+            onClick={() => router.push(`/compare?tools=${compareSelection.join(",")}`)}
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              fontWeight: 600,
+              padding: "4px 12px",
+              background: "var(--accent-primary)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "var(--radius-sm)",
+              cursor: "pointer",
+            }}
+          >
+            Compare {compareSelection.length} tools &rarr;
+          </button>
+        )}
         <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)" }}>
           {sorted.length} tools
         </span>
@@ -154,6 +204,11 @@ export function MatrixClient({ tools }: { tools: ToolData[] }) {
         <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border-default)" }}>
+              <th style={{ padding: "10px 8px", width: "32px" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)" }}>
+                  {compareSelection.length > 0 ? compareSelection.length : ""}
+                </span>
+              </th>
               <th
                 className="cursor-pointer select-none"
                 onClick={() => handleSort("name")}
@@ -205,10 +260,25 @@ export function MatrixClient({ tools }: { tools: ToolData[] }) {
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-elevated)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
+                <td style={{ padding: "8px", width: "32px" }}>
+                  <input
+                    type="checkbox"
+                    checked={compareSelection.includes(tool.slug)}
+                    onChange={() => toggleCompare(tool.slug)}
+                    disabled={!compareSelection.includes(tool.slug) && compareSelection.length >= 4}
+                    style={{ cursor: "pointer", accentColor: "var(--accent-primary)" }}
+                    aria-label={`Select ${tool.name} for comparison`}
+                  />
+                </td>
                 <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
                   <Link href={`/tools/${tool.slug}`} className="no-underline">
                     <span style={{ fontFamily: "var(--font-sans)", fontWeight: 600, color: "var(--text-primary)" }}>{tool.name}</span>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)", marginLeft: "8px" }}>{tool.category}</span>
+                    {tool.updatedAt && (
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-muted)", marginLeft: "8px" }}>
+                        {new Date(tool.updatedAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                      </span>
+                    )}
                   </Link>
                 </td>
                 <td style={{ padding: "8px 12px", textAlign: "center" }}>

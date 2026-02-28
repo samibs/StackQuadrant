@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { InfoIcon } from "@/components/ui/tooltip";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function BenchmarkDetailPage({ params }: { params: Promise<
     <>
     <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Benchmarks", href: "/benchmarks" }, { name: benchmark.title, href: `/benchmarks/${slug}` }]} />
     <div style={{ padding: "var(--grid-gap)" }}>
+      <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Benchmarks", href: "/benchmarks" }, { label: benchmark.title }]} />
       {/* Header */}
       <div
         className="px-[var(--space-4)] py-[var(--space-3)] mb-[var(--grid-gap)]"

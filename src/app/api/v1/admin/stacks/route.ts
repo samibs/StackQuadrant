@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/utils/auth";
 import { db } from "@/lib/db";
 import { stacks } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
+import { validateString, validateSlug, validateNumber, validateEnum, collectErrors } from "@/lib/utils/validate";
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin(request);
@@ -26,8 +27,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, slug, description, useCase, projectOutcome, overallScore, metrics, status } = body;
 
-    if (!name || !slug || !description || !useCase || !projectOutcome || overallScore === undefined || !metrics) {
-      return apiError("VALIDATION_FAILED", "Missing required fields", 400);
+    const errors = collectErrors(
+      validateString(name, "name", { max: 200 }),
+      validateSlug(slug),
+      validateString(description, "description", { max: 5000 }),
+      validateString(useCase, "useCase", { max: 2000 }),
+      validateString(projectOutcome, "projectOutcome", { max: 2000 }),
+      validateNumber(overallScore, "overallScore", { min: 0, max: 10, required: true }),
+      validateEnum(status, "status", ["draft", "published", "archived"], { required: false }),
+    );
+    if (!metrics || typeof metrics !== "object") {
+      errors.push({ field: "metrics", message: "metrics is required and must be an object" });
+    }
+    if (errors.length > 0) {
+      return apiError("VALIDATION_FAILED", "Invalid input", 400, errors);
     }
 
     const [created] = await db.insert(stacks).values({

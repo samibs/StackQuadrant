@@ -6,6 +6,7 @@ import { Panel } from "@/components/layout/panel";
 import { ScoreRing } from "@/components/visualizations/score-ring";
 import { ScoreBar } from "@/components/visualizations/score-bar";
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function StackDetailPage({ params }: { params: Promise<{ sl
     <>
     <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Stacks", href: "/stacks" }, { name: stack.name, href: `/stacks/${slug}` }]} />
     <div style={{ padding: "var(--grid-gap)" }}>
+      <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Stacks", href: "/stacks" }, { label: stack.name }]} />
       {/* Header */}
       <div
         className="flex items-start justify-between px-[var(--space-4)] py-[var(--space-3)] mb-[var(--grid-gap)]"

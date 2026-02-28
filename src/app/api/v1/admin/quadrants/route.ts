@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/utils/auth";
 import { db } from "@/lib/db";
 import { quadrants } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
+import { validateString, validateSlug, validateEnum, collectErrors } from "@/lib/utils/validate";
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin(request);
@@ -26,8 +27,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, slug, description, xAxisLabel, yAxisLabel, quadrantLabels, status } = body;
 
-    if (!title || !slug || !description || !xAxisLabel || !yAxisLabel || !quadrantLabels) {
-      return apiError("VALIDATION_FAILED", "Missing required fields", 400);
+    const errors = collectErrors(
+      validateString(title, "title", { max: 200 }),
+      validateSlug(slug),
+      validateString(description, "description", { max: 5000 }),
+      validateString(xAxisLabel, "xAxisLabel", { max: 100 }),
+      validateString(yAxisLabel, "yAxisLabel", { max: 100 }),
+      validateEnum(status, "status", ["draft", "published", "archived"], { required: false }),
+    );
+    if (!quadrantLabels || typeof quadrantLabels !== "object") {
+      errors.push({ field: "quadrantLabels", message: "quadrantLabels is required and must be an object" });
+    }
+    if (errors.length > 0) {
+      return apiError("VALIDATION_FAILED", "Invalid input", 400, errors);
     }
 
     const [created] = await db.insert(quadrants).values({

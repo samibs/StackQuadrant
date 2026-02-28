@@ -1,7 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 import { NextRequest } from "next/server";
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret-change-in-production-32chars");
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  throw new Error("JWT_SECRET must be set and at least 32 characters");
+}
 
 export async function signToken(payload: { userId: string; email: string; role: string }) {
   return new SignJWT(payload)
@@ -17,12 +21,15 @@ export async function verifyToken(token: string) {
 }
 
 export async function getAuthPayload(request: NextRequest) {
+  // Check httpOnly cookie first, then fall back to Authorization header
+  const cookieToken = request.cookies.get("sq-admin-token")?.value;
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
+  const token = cookieToken || (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null);
+
+  if (!token) return null;
+
   try {
-    return await verifyToken(authHeader.slice(7));
+    return await verifyToken(token);
   } catch {
     return null;
   }

@@ -40,8 +40,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body = await request.json();
     const { scores } = body as { scores: Array<{ dimensionId: string; score: number; evidence?: string }> };
 
-    if (!scores || !Array.isArray(scores)) {
-      return apiError("VALIDATION_FAILED", "Scores array is required", 400);
+    if (!scores || !Array.isArray(scores) || scores.length === 0 || scores.length > 50) {
+      return apiError("VALIDATION_FAILED", "Scores must be a non-empty array (max 50)", 400);
+    }
+
+    for (const s of scores) {
+      if (!s.dimensionId || typeof s.dimensionId !== "string") {
+        return apiError("VALIDATION_FAILED", "Each score must have a dimensionId", 400);
+      }
+      const score = Number(s.score);
+      if (isNaN(score) || score < 0 || score > 10) {
+        return apiError("VALIDATION_FAILED", "Each score must be between 0 and 10", 400);
+      }
+      if (s.evidence && (typeof s.evidence !== "string" || s.evidence.length > 5000)) {
+        return apiError("VALIDATION_FAILED", "Evidence must be a string under 5000 characters", 400);
+      }
     }
 
     const results = [];

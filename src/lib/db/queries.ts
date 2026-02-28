@@ -1,5 +1,5 @@
 import { db } from "./index";
-import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools } from "./schema";
+import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts } from "./schema";
 import { eq, and, sql, desc, asc, ilike, count } from "drizzle-orm";
 
 export async function getPublishedTools(opts: {
@@ -143,7 +143,35 @@ export async function getQuadrantBySlug(slug: string) {
 }
 
 export async function getPublishedBenchmarks() {
-  return db.select().from(benchmarks).where(eq(benchmarks.status, "published")).orderBy(desc(benchmarks.publishedAt));
+  const benchmarkList = await db.select().from(benchmarks).where(eq(benchmarks.status, "published")).orderBy(desc(benchmarks.publishedAt));
+
+  const benchmarkIds = benchmarkList.map((b) => b.id);
+  const allResults = benchmarkIds.length > 0
+    ? await db.select({
+        benchmarkId: benchmarkResults.benchmarkId,
+        toolName: tools.name,
+        results: benchmarkResults.results,
+      })
+      .from(benchmarkResults)
+      .innerJoin(tools, eq(benchmarkResults.toolId, tools.id))
+      .where(sql`${benchmarkResults.benchmarkId} IN ${benchmarkIds}`)
+    : [];
+
+  return benchmarkList.map((b) => {
+    const results = allResults.filter((r) => r.benchmarkId === b.id);
+    const metrics = b.metrics as Array<{ name: string; unit: string; higherIsBetter: boolean }> | null;
+    let topTool: string | null = null;
+    if (results.length > 0 && metrics && metrics.length > 0) {
+      const primaryMetric = metrics[0];
+      const sorted = [...results].sort((a, b) => {
+        const aVal = (a.results as Record<string, number>)[primaryMetric.name] || 0;
+        const bVal = (b.results as Record<string, number>)[primaryMetric.name] || 0;
+        return primaryMetric.higherIsBetter ? bVal - aVal : aVal - bVal;
+      });
+      topTool = sorted[0]?.toolName || null;
+    }
+    return { ...b, topTool, participantCount: results.length };
+  });
 }
 
 export async function getBenchmarkBySlug(slug: string) {
@@ -222,6 +250,37 @@ export async function getStackBySlug(slug: string) {
   };
 }
 
+export async function getToolsBySlugs(slugs: string[]) {
+  if (slugs.length === 0) return [];
+  const toolList = await db.select().from(tools)
+    .where(and(eq(tools.status, "published"), sql`${tools.slug} IN ${slugs}`));
+  if (toolList.length === 0) return [];
+
+  const allDimensions = await db.select().from(dimensions).orderBy(asc(dimensions.displayOrder));
+  const toolIds = toolList.map((t) => t.id);
+  const scores = await db.select().from(toolScores).where(sql`${toolScores.toolId} IN ${toolIds}`);
+
+  return toolList.map((tool) => ({
+    ...tool,
+    overallScore: tool.overallScore ? parseFloat(tool.overallScore) : null,
+    tags: (tool.tags || []) as string[],
+    scores: allDimensions.map((dim) => {
+      const score = scores.find((s) => s.toolId === tool.id && s.dimensionId === dim.id);
+      return {
+        dimension: dim.name,
+        dimensionSlug: dim.slug,
+        score: score ? parseFloat(score.score) : null,
+      };
+    }),
+  }));
+}
+
+export async function getAllPublishedToolSlugs() {
+  const result = await db.select({ name: tools.name, slug: tools.slug }).from(tools)
+    .where(eq(tools.status, "published")).orderBy(asc(tools.name));
+  return result;
+}
+
 export async function getSearchIndex() {
   const publishedTools = await db.select({ id: tools.id, name: tools.name, slug: tools.slug, category: tools.category })
     .from(tools).where(eq(tools.status, "published"));
@@ -238,4 +297,72 @@ export async function getSearchIndex() {
     ...publishedBenchmarks.map((b) => ({ ...b, type: "benchmark" as const })),
     ...publishedStacks.map((s) => ({ id: s.id, name: s.name, slug: s.slug, type: "stack" as const, category: s.useCase })),
   ];
+}
+
+export async function getRecentlyUpdatedTools(limit: number = 3) {
+  const result = await db.select({
+    id: tools.id,
+    name: tools.name,
+    slug: tools.slug,
+    overallScore: tools.overallScore,
+    updatedAt: tools.updatedAt,
+    category: tools.category,
+  }).from(tools)
+    .where(eq(tools.status, "published"))
+    .orderBy(desc(tools.updatedAt))
+    .limit(limit);
+  return result.map((t) => ({
+    ...t,
+    overallScore: t.overallScore ? parseFloat(t.overallScore) : null,
+  }));
+}
+
+export async function getQuadrantWithPositions() {
+  const [quadrant] = await db.select().from(quadrants)
+    .where(eq(quadrants.status, "published"))
+    .orderBy(desc(quadrants.publishedAt))
+    .limit(1);
+  if (!quadrant) return null;
+
+  const positions = await db.select({
+    toolId: quadrantPositions.toolId,
+    toolName: tools.name,
+    toolSlug: tools.slug,
+    xPosition: quadrantPositions.xPosition,
+    yPosition: quadrantPositions.yPosition,
+  })
+    .from(quadrantPositions)
+    .innerJoin(tools, eq(quadrantPositions.toolId, tools.id))
+    .where(eq(quadrantPositions.quadrantId, quadrant.id));
+
+  return {
+    ...quadrant,
+    quadrantLabels: quadrant.quadrantLabels as { topRight: string; topLeft: string; bottomRight: string; bottomLeft: string },
+    positions: positions.map((p) => ({
+      ...p,
+      xPosition: parseFloat(p.xPosition),
+      yPosition: parseFloat(p.yPosition),
+    })),
+  };
+}
+
+export async function getPublishedBlogPosts() {
+  return db.select().from(blogPosts).where(eq(blogPosts.status, "published")).orderBy(desc(blogPosts.publishedAt));
+}
+
+export async function getBlogPostBySlug(slug: string) {
+  const [post] = await db.select().from(blogPosts).where(and(eq(blogPosts.slug, slug), eq(blogPosts.status, "published")));
+  return post || null;
+}
+
+export async function getRecentBlogPosts(limit: number = 3) {
+  return db.select({
+    id: blogPosts.id,
+    title: blogPosts.title,
+    slug: blogPosts.slug,
+    excerpt: blogPosts.excerpt,
+    category: blogPosts.category,
+    tags: blogPosts.tags,
+    publishedAt: blogPosts.publishedAt,
+  }).from(blogPosts).where(eq(blogPosts.status, "published")).orderBy(desc(blogPosts.publishedAt)).limit(limit);
 }

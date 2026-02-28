@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { subscribers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import { sendConfirmationEmail } from "@/lib/utils/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,13 @@ export async function POST(request: NextRequest) {
       confirmationToken,
       status: "pending",
     });
+
+    try {
+      await sendConfirmationEmail(email.toLowerCase(), confirmationToken);
+    } catch (emailError) {
+      console.error("Failed to send confirmation email:", emailError);
+      // Subscriber is saved; they can re-request confirmation later
+    }
 
     return apiSuccess({ status: "pending_confirmation" }, undefined, 201);
   } catch (error) {

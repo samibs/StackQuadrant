@@ -1,6 +1,6 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { compare } from "bcryptjs";
-import { apiSuccess, apiError } from "@/lib/utils/api";
+import { apiError } from "@/lib/utils/api";
 import { signToken } from "@/lib/utils/auth";
 import { db } from "@/lib/db";
 import { adminUsers } from "@/lib/db/schema";
@@ -31,9 +31,21 @@ export async function POST(request: NextRequest) {
     await db.update(adminUsers).set({ lastLoginAt: new Date() }).where(eq(adminUsers.id, user.id));
 
     const token = await signToken({ userId: user.id, email: user.email, role: user.role });
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    return apiSuccess({ token, expiresAt });
+    const response = NextResponse.json({
+      data: { success: true },
+      correlationId: crypto.randomUUID(),
+    });
+
+    response.cookies.set("sq-admin-token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      path: "/",
+      maxAge: 24 * 60 * 60, // 24 hours
+    });
+
+    return response;
   } catch (error) {
     console.error("POST /api/v1/auth/login error:", error);
     return apiError("INTERNAL_ERROR", "An unexpected error occurred", 500);
