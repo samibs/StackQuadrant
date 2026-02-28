@@ -1,0 +1,103 @@
+name: weekly-digest
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"  # Every Monday 08:00 UTC
+  workflow_dispatch:       # Manual trigger
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 200
+
+      - name: Build digest
+        id: digest
+        run: |
+          WEEK_START=$(date -u -d '7 days ago' +%Y-%m-%d)
+          WEEK_END=$(date -u +%Y-%m-%d)
+
+          # Collect commits from the past 7 days
+          COMMITS=$(git log --since="7 days ago" --pretty="- %s (%an)" 2>/dev/null || echo "- No commits this week")
+          COMMIT_COUNT=$(git log --since="7 days ago" --oneline 2>/dev/null | wc -l)
+
+          # Collect files changed
+          FILES_CHANGED=$(git diff --stat "HEAD~${COMMIT_COUNT:-1}" HEAD 2>/dev/null | tail -1 || echo "unknown")
+
+          # Build the digest body
+          cat > /tmp/digest.md << EOF
+          ## Weekly StackQuadrant Digest
+          **${WEEK_START} → ${WEEK_END}** | ${COMMIT_COUNT} commits
+
+          ### What changed
+          ${COMMITS}
+
+          ### Stats
+          ${FILES_CHANGED}
+
+          ---
+
+          **Repo:** https://github.com/${{ github.repository }}
+          **Live:** https://stackquadrant.com
+          **Submit a project:** https://stackquadrant.com/showcase/submit
+          EOF
+
+          # Export for next step
+          echo "title=Weekly digest — ${WEEK_END}" >> "$GITHUB_OUTPUT"
+          echo "commit_count=${COMMIT_COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Create issue as digest
+        if: steps.digest.outputs.commit_count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "${{ steps.digest.outputs.title }}" \
+            --body-file /tmp/digest.md \
+            --label "digest,automated"
+
+      - name: Generate social post drafts
+        if: steps.digest.outputs.commit_count != '0'
+        run: |
+          WEEK_END=$(date -u +%Y-%m-%d)
+          COMMITS=$(git log --since="7 days ago" --pretty="- %s" 2>/dev/null | head -5)
+
+          cat > /tmp/weekly-social.md << EOF
+          # Weekly Social Post Draft — ${WEEK_END}
+
+          ## LinkedIn
+          This week in StackQuadrant:
+
+          ${COMMITS}
+
+          AI developer tool intelligence — scores, benchmarks, and an auto-scored ecosystem directory.
+
+          https://github.com/${{ github.repository }}
+
+          #AITools #DeveloperTools #OpenSource
+
+          ## X/Twitter
+          This week in StackQuadrant:
+
+          $(git log --since="7 days ago" --pretty="- %s" 2>/dev/null | head -3)
+
+          https://github.com/${{ github.repository }}
+          #AITools #OpenSource
+          EOF
+
+          echo "--- Weekly Social Drafts ---"
+          cat /tmp/weekly-social.md
+
+      - name: Upload social drafts
+        if: steps.digest.outputs.commit_count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-social-${{ github.run_id }}
+          path: /tmp/weekly-social.md
+          retention-days: 14

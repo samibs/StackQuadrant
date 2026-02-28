@@ -1,0 +1,105 @@
+name: announce-release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  discord:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.DISCORD_WEBHOOK != '' }}
+    steps:
+      - name: Post to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          TITLE="${{ github.event.release.name }}"
+          TAG="${{ github.event.release.tag_name }}"
+          URL="${{ github.event.release.html_url }}"
+          BODY=$(echo "${{ github.event.release.body }}" | head -c 1800)
+
+          PAYLOAD=$(jq -n \
+            --arg content "**StackQuadrant ${TAG}** is out!\n\n${BODY}\n\nRelease: ${URL}\nRepo: https://github.com/${{ github.repository }}" \
+            '{content: $content}')
+
+          curl -sf -H "Content-Type: application/json" -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+
+  slack:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.SLACK_WEBHOOK != '' }}
+    steps:
+      - name: Post to Slack
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          TITLE="${{ github.event.release.name }}"
+          TAG="${{ github.event.release.tag_name }}"
+          URL="${{ github.event.release.html_url }}"
+          BODY=$(echo "${{ github.event.release.body }}" | head -c 1800)
+
+          PAYLOAD=$(jq -n \
+            --arg text "*StackQuadrant ${TAG}* is out!\n\n${BODY}\n\n<${URL}|View Release> | <https://github.com/${{ github.repository }}|Repo>" \
+            '{text: $text}')
+
+          curl -sf -H "Content-Type: application/json" -d "$PAYLOAD" "$SLACK_WEBHOOK"
+
+  linkedin-draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate LinkedIn post draft
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          TITLE="${{ github.event.release.name }}"
+          BODY="${{ github.event.release.body }}"
+
+          cat > /tmp/linkedin-draft.md << DRAFT
+          # LinkedIn Post Draft — StackQuadrant ${TAG}
+
+          StackQuadrant ${TAG} is out!
+
+          $(echo "$BODY" | head -20)
+
+          Try it: https://stackquadrant.com
+          Repo: https://github.com/${{ github.repository }}
+
+          #AITools #DeveloperTools #OpenSource #AIEngineering #DevTools
+          DRAFT
+
+          echo "--- LinkedIn Draft ---"
+          cat /tmp/linkedin-draft.md
+
+      - name: Upload draft as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkedin-draft-${{ github.event.release.tag_name }}
+          path: /tmp/linkedin-draft.md
+          retention-days: 30
+
+  twitter-draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate X/Twitter post draft
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+
+          cat > /tmp/twitter-draft.md << DRAFT
+          StackQuadrant ${TAG} is live!
+
+          Data-driven evaluations of AI coding tools — scores, benchmarks, quadrant charts, and an AI/LLM ecosystem directory with 30+ repos auto-scored from GitHub metrics.
+
+          https://github.com/${{ github.repository }}
+
+          #AITools #DevTools #OpenSource
+          DRAFT
+
+          echo "--- X/Twitter Draft ---"
+          cat /tmp/twitter-draft.md
+
+      - name: Upload draft as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: twitter-draft-${{ github.event.release.tag_name }}
+          path: /tmp/twitter-draft.md
+          retention-days: 30

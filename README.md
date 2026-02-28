@@ -1,6 +1,13 @@
 # StackQuadrant
 
-A data-driven intelligence platform for evaluating AI developer tools, open-source AI/LLM repositories, and community-built vibe-coded projects. Think Gartner Magic Quadrant, but built by developers for developers.
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](CHANGELOG.md)
+[![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+**The Gartner Magic Quadrant for AI developer tools — built by developers, for developers.**
+
+A data-driven intelligence platform for evaluating AI coding tools, open-source AI/LLM repositories, and community-built vibe-coded projects. Scores, benchmarks, quadrant charts, and an auto-scored ecosystem directory with 30+ repos.
 
 ![StackQuadrant Dashboard](public/screenshot-dashboard.png)
 
@@ -309,6 +316,22 @@ Scores use logarithmic normalization for wide-range metrics and linear/freshness
 | `Cmd+K` / `Ctrl+K` | Open command palette |
 | `Esc` | Close command palette / dialogs |
 
+## Why StackQuadrant?
+
+- **No marketing bias** — Scores are derived from real benchmarks and GitHub metrics, not vendor demos
+- **Auto-scored repos** — Quality scores generated from live data, not opinions
+- **Full transparency** — Every score includes evidence text explaining what contributed
+- **Community-driven** — Submit your AI-built projects, contribute evaluations
+- **Weekly discovery** — New AI/LLM repos found and scored automatically
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines. PRs are welcome.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for details.
