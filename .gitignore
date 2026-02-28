@@ -54,6 +54,7 @@ logs/
 
 # framework config (editor/AI agent configs)
 .agents/
+.claude/
 .copilot/
 .cursor/
 .gemini/
@@ -61,3 +62,6 @@ agents/
 memory_bank/
 genesis/
 docs/
+AGENTS.md
+CLAUDE.md
+chatgpt_discussion_leading_to_the_idea.md
