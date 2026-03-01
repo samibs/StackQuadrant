@@ -3,7 +3,9 @@ import { apiSuccess, apiError } from "@/lib/utils/api";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { collectErrors, validateString } from "@/lib/utils/validate";
 import DOMPurify from "isomorphic-dompurify";
+import { createHash } from "crypto";
 import { TOOL_ANALYST_PROMPT, getMcpToolDefinitions, executeMcpTool } from "@/lib/mcp/server";
+import { logAskQuery, calculateConfidence } from "@/lib/db/queries";
 
 export async function POST(request: NextRequest) {
   try {
@@ -132,6 +134,24 @@ export async function POST(request: NextRequest) {
     // Parse the response into structured format
     const structured = parseAskResponse(rawText);
 
+    // Calculate confidence based on referenced tools
+    const toolSlugs = [structured.recommendation.toolSlug, ...structured.alternatives.map(a => a.toolSlug)].filter(Boolean);
+    const confidence = await calculateConfidence(toolSlugs);
+    structured.confidence = confidence.level;
+    structured.recommendation.confidence = confidence.level;
+    structured.confidenceDetails = confidence;
+
+    // Log the ask query for analytics (fire and forget)
+    const ipHash = createHash("sha256").update(ip).digest("hex");
+    const normalizedQuery = question.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+    logAskQuery({
+      query: question,
+      normalizedQuery,
+      responseConfidence: confidence.level,
+      toolsReferenced: toolSlugs,
+      ipHash,
+    }).catch(err => console.error("Failed to log ask query:", err));
+
     return apiSuccess(structured);
   } catch (err) {
     console.error("Widget ask error:", err);
@@ -205,10 +225,11 @@ function parseAskResponse(text: string) {
   // If we couldn't parse structured data, return the raw text as rationale
   if (!toolName && rationale.length === 0) {
     return {
-      recommendation: { toolSlug: "", toolName: "See analysis below", quadrant: "", confidence: "medium" },
+      recommendation: { toolSlug: "", toolName: "See analysis below", quadrant: "", confidence: "medium" as const },
       rationale: [text.slice(0, 1000)],
-      alternatives: [],
+      alternatives: [] as Array<{ toolSlug: string; toolName: string; reason: string }>,
       confidence: "medium" as const,
+      confidenceDetails: null as { level: string; score: number; factors: string[] } | null,
       sources: ["dimension_scores"],
     };
   }
@@ -218,6 +239,7 @@ function parseAskResponse(text: string) {
     rationale: rationale.slice(0, 6),
     alternatives: alternatives.slice(0, 4),
     confidence,
+    confidenceDetails: null as { level: string; score: number; factors: string[] } | null,
     sources: sources.length > 0 ? sources : ["dimension_scores", "quadrant_position"],
   };
 }

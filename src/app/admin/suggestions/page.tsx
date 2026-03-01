@@ -14,6 +14,8 @@ interface Suggestion {
   submitterEmail: string | null;
   createdAt: string;
   reviewedBy: string | null;
+  communityVerified: boolean;
+  supportCount: number;
 }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
@@ -151,6 +153,7 @@ export default function AdminSuggestionsPage() {
               <th style={{ padding: "10px 12px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>Type</th>
               <th style={{ padding: "10px 12px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>Tool</th>
               <th style={{ padding: "10px 12px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>Reason</th>
+              <th style={{ padding: "10px 12px", textAlign: "center", color: "var(--text-secondary)", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>Votes</th>
               <th style={{ padding: "10px 12px", textAlign: "center", color: "var(--text-secondary)", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>Status</th>
               <th style={{ padding: "10px 12px", textAlign: "left", color: "var(--text-secondary)", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>Date</th>
               <th style={{ padding: "10px 12px", textAlign: "right", color: "var(--text-secondary)", fontWeight: 600, fontSize: "10px", textTransform: "uppercase" }}>Actions</th>
@@ -186,6 +189,16 @@ export default function AdminSuggestionsPage() {
                     </div>
                   </td>
                   <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
+                        {s.supportCount || 0}
+                      </span>
+                      {s.communityVerified && (
+                        <span style={{ fontSize: 8, color: "#22c55e", fontWeight: 600 }}>VERIFIED</span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={{ padding: "8px 12px", textAlign: "center" }}>
                     <span style={{
                       fontFamily: "var(--font-mono)",
                       fontSize: "10px",
@@ -213,7 +226,7 @@ export default function AdminSuggestionsPage() {
             })}
             {suggestions.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: "24px 12px", textAlign: "center", color: "var(--text-muted)" }}>
+                <td colSpan={7} style={{ padding: "24px 12px", textAlign: "center", color: "var(--text-muted)" }}>
                   No suggestions found.
                 </td>
               </tr>

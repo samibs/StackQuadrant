@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/utils/api";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { collectErrors, validateString, validateEnum, validateUrl } from "@/lib/utils/validate";
-import { createSuggestion } from "@/lib/db/queries";
+import { createSuggestion, checkAndApplyCommunityVerification } from "@/lib/db/queries";
+import { createHash } from "crypto";
 import DOMPurify from "isomorphic-dompurify";
 
 const SUGGESTION_TYPES = ["add_tool", "move_tool", "update_metadata", "merge_duplicates", "flag_discontinued"];
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const sanitizedReason = DOMPurify.sanitize(body.reason);
+    const ipHash = createHash("sha256").update(ip).digest("hex");
 
     const context = {
       pageUrl: body.context?.pageUrl || undefined,
@@ -93,7 +95,13 @@ export async function POST(request: NextRequest) {
       userRole: body.userRole || "user",
       submitterEmail: body.submitterEmail || undefined,
       context,
+      ipHash,
     });
+
+    // Trigger community verification check asynchronously
+    checkAndApplyCommunityVerification(result.id).catch((err) =>
+      console.error("Community verification check failed:", err)
+    );
 
     return apiSuccess(result, undefined, 201);
   } catch (error) {

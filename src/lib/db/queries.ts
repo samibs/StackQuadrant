@@ -1,6 +1,6 @@
 import { db } from "./index";
-import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks, suggestions, reports, changeJobs, toolChangelog } from "./schema";
-import { eq, and, sql, desc, asc, ilike, count } from "drizzle-orm";
+import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks, suggestions, reports, changeJobs, toolChangelog, askQueries, appSettings } from "./schema";
+import { eq, and, sql, desc, asc, ilike, count, gte, lte } from "drizzle-orm";
 
 export async function getPublishedTools(opts: {
   page: number;
@@ -819,6 +819,7 @@ export async function createSuggestion(data: {
   userRole: string;
   submitterEmail?: string;
   context: { pageUrl?: string; toolCardId?: string; browser?: string; locale?: string };
+  ipHash?: string;
 }) {
   const [inserted] = await db.insert(suggestions).values({
     type: data.type,
@@ -831,6 +832,7 @@ export async function createSuggestion(data: {
     userRole: data.userRole,
     submitterEmail: data.submitterEmail ?? null,
     context: data.context,
+    ipHash: data.ipHash ?? null,
   }).returning();
   return inserted;
 }
@@ -872,10 +874,12 @@ export async function listSuggestions(opts: {
   status?: string;
   type?: string;
   sort?: string;
+  communityVerified?: boolean;
 }) {
   const conditions = [];
   if (opts.status) conditions.push(eq(suggestions.status, opts.status));
   if (opts.type) conditions.push(eq(suggestions.type, opts.type));
+  if (opts.communityVerified !== undefined) conditions.push(eq(suggestions.communityVerified, opts.communityVerified));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -889,6 +893,7 @@ export async function listSuggestions(opts: {
     : sortField === "updatedAt" ? suggestions.updatedAt
     : sortField === "toolName" ? suggestions.toolName
     : sortField === "status" ? suggestions.status
+    : sortField === "supportCount" ? suggestions.supportCount
     : suggestions.createdAt;
 
   const suggestionList = await db.select().from(suggestions).where(where)
@@ -1099,4 +1104,335 @@ export async function getSimilarSuggestions(toolSlug: string, type: string) {
     ))
     .orderBy(desc(suggestions.createdAt))
     .limit(20);
+}
+
+// ============================================
+// Phase 2: Intelligence Layer Queries
+// ============================================
+
+// --- Ask Queries Logging ---
+
+export async function logAskQuery(data: {
+  query: string;
+  normalizedQuery: string;
+  responseConfidence?: string;
+  toolsReferenced: string[];
+  ipHash?: string;
+}) {
+  const [inserted] = await db.insert(askQueries).values({
+    query: data.query,
+    normalizedQuery: data.normalizedQuery,
+    responseConfidence: data.responseConfidence ?? null,
+    toolsReferenced: data.toolsReferenced,
+    ipHash: data.ipHash ?? null,
+  }).returning();
+  return inserted;
+}
+
+export async function getTopAskQueries(period: string, limit: number = 20) {
+  const since = getPeriodDate(period);
+  const conditions = since ? [gte(askQueries.createdAt, since)] : [];
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  return db.select({
+    normalizedQuery: askQueries.normalizedQuery,
+    count: count(),
+  }).from(askQueries)
+    .where(where)
+    .groupBy(askQueries.normalizedQuery)
+    .orderBy(desc(count()))
+    .limit(limit);
+}
+
+// --- App Settings ---
+
+export async function getAppSetting(key: string) {
+  const [setting] = await db.select().from(appSettings).where(eq(appSettings.key, key));
+  return setting?.value ?? null;
+}
+
+export async function setAppSetting(key: string, value: unknown, updatedBy?: string) {
+  const [upserted] = await db.insert(appSettings).values({
+    key,
+    value: value as Record<string, unknown>,
+    updatedAt: new Date(),
+    updatedBy: updatedBy ?? null,
+  }).onConflictDoUpdate({
+    target: appSettings.key,
+    set: {
+      value: value as Record<string, unknown>,
+      updatedAt: new Date(),
+      updatedBy: updatedBy ?? null,
+    },
+  }).returning();
+  return upserted;
+}
+
+// --- Duplicate Detection ---
+
+export async function findDuplicateSuggestions(toolName: string, type: string, toolSlug?: string) {
+  const conditions = [
+    eq(suggestions.status, "pending"),
+    eq(suggestions.type, type),
+  ];
+
+  if (toolSlug) {
+    conditions.push(eq(suggestions.toolSlug, toolSlug));
+  } else {
+    conditions.push(ilike(suggestions.toolName, toolName));
+  }
+
+  return db.select({
+    id: suggestions.id,
+    type: suggestions.type,
+    toolName: suggestions.toolName,
+    toolSlug: suggestions.toolSlug,
+    proposedQuadrant: suggestions.proposedQuadrant,
+    reason: suggestions.reason,
+    supportCount: suggestions.supportCount,
+    communityVerified: suggestions.communityVerified,
+    createdAt: suggestions.createdAt,
+  }).from(suggestions)
+    .where(and(...conditions))
+    .orderBy(desc(suggestions.supportCount), desc(suggestions.createdAt))
+    .limit(5);
+}
+
+// --- Support Votes ---
+
+export async function addSupportVote(suggestionId: string, data: {
+  emailHash?: string;
+  evidence?: string;
+}) {
+  const [suggestion] = await db.select().from(suggestions).where(eq(suggestions.id, suggestionId));
+  if (!suggestion) return null;
+
+  const existingEmails = (suggestion.supporterEmails || []) as string[];
+  if (data.emailHash && existingEmails.includes(data.emailHash)) {
+    return { alreadySupported: true, supportCount: suggestion.supportCount };
+  }
+
+  const newEmails = data.emailHash ? [...existingEmails, data.emailHash] : existingEmails;
+  const existingEvidence = (suggestion.supporterEvidence || []) as Array<{ email?: string; evidence?: string; addedAt: string }>;
+  const newEvidence = data.evidence
+    ? [...existingEvidence, { email: data.emailHash, evidence: data.evidence, addedAt: new Date().toISOString() }]
+    : existingEvidence;
+
+  const [updated] = await db.update(suggestions)
+    .set({
+      supportCount: suggestion.supportCount + 1,
+      supporterEmails: newEmails,
+      supporterEvidence: newEvidence,
+      updatedAt: new Date(),
+    })
+    .where(eq(suggestions.id, suggestionId))
+    .returning();
+
+  return { alreadySupported: false, supportCount: updated.supportCount };
+}
+
+// --- Community Verification ---
+
+export async function checkAndApplyCommunityVerification(suggestionId: string) {
+  const [suggestion] = await db.select().from(suggestions).where(eq(suggestions.id, suggestionId));
+  if (!suggestion || suggestion.communityVerified) return false;
+
+  const thresholdSetting = await getAppSetting("verification_threshold");
+  const threshold = typeof thresholdSetting === "number" ? thresholdSetting : parseInt(String(thresholdSetting || "3"), 10);
+
+  // Find matching pending suggestions for the same tool and type
+  const conditions = [
+    eq(suggestions.toolSlug, suggestion.toolSlug ?? ""),
+    eq(suggestions.type, suggestion.type),
+    eq(suggestions.status, "pending"),
+  ];
+
+  // For move_tool, also match proposed quadrant
+  if (suggestion.type === "move_tool" && suggestion.proposedQuadrant) {
+    conditions.push(eq(suggestions.proposedQuadrant, suggestion.proposedQuadrant));
+  }
+
+  // For add_tool, match tool name
+  if (suggestion.type === "add_tool") {
+    conditions.push(ilike(suggestions.toolName, suggestion.toolName));
+  }
+
+  const matching = await db.select({ id: suggestions.id, ipHash: suggestions.ipHash })
+    .from(suggestions)
+    .where(and(...conditions));
+
+  // Count unique IPs (independent suggestions)
+  const uniqueIps = new Set(matching.map(m => m.ipHash).filter(Boolean));
+  const totalVoices = uniqueIps.size > 0 ? uniqueIps.size : matching.length;
+
+  if (totalVoices >= threshold) {
+    const matchingIds = matching.map(m => m.id);
+    await db.update(suggestions)
+      .set({ communityVerified: true, updatedAt: new Date() })
+      .where(sql`${suggestions.id} IN ${matchingIds}`);
+    return true;
+  }
+
+  return false;
+}
+
+// --- Analytics Aggregations ---
+
+function getPeriodDate(period: string): Date | null {
+  const now = new Date();
+  switch (period) {
+    case "7d": return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case "30d": return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    case "90d": return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    default: return null;
+  }
+}
+
+export async function getSuggestionAnalytics(period: string) {
+  const since = getPeriodDate(period);
+
+  const conditions = since ? [gte(suggestions.createdAt, since)] : [];
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const byType = await db.select({
+    type: suggestions.type,
+    count: count(),
+  }).from(suggestions).where(where).groupBy(suggestions.type);
+
+  const byStatus = await db.select({
+    status: suggestions.status,
+    count: count(),
+  }).from(suggestions).where(where).groupBy(suggestions.status);
+
+  const [totalResult] = await db.select({ count: count() }).from(suggestions).where(where);
+  const [verifiedResult] = await db.select({ count: count() }).from(suggestions)
+    .where(conditions.length > 0 ? and(...conditions, eq(suggestions.communityVerified, true)) : eq(suggestions.communityVerified, true));
+
+  // Over time: group by date (last 30 entries max)
+  const overTime = await db.select({
+    date: sql<string>`DATE(${suggestions.createdAt})`.as("date"),
+    count: count(),
+  }).from(suggestions).where(where)
+    .groupBy(sql`DATE(${suggestions.createdAt})`)
+    .orderBy(desc(sql`DATE(${suggestions.createdAt})`))
+    .limit(30);
+
+  return {
+    byType,
+    byStatus,
+    total: totalResult.count,
+    communityVerified: verifiedResult.count,
+    overTime: overTime.reverse(),
+  };
+}
+
+export async function getReportAnalytics(period: string) {
+  const since = getPeriodDate(period);
+  const conditions = since ? [gte(reports.createdAt, since)] : [];
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const byType = await db.select({
+    type: reports.type,
+    count: count(),
+  }).from(reports).where(where).groupBy(reports.type);
+
+  const overTime = await db.select({
+    date: sql<string>`DATE(${reports.createdAt})`.as("date"),
+    count: count(),
+  }).from(reports).where(where)
+    .groupBy(sql`DATE(${reports.createdAt})`)
+    .orderBy(desc(sql`DATE(${reports.createdAt})`))
+    .limit(30);
+
+  const [totalResult] = await db.select({ count: count() }).from(reports).where(where);
+
+  return {
+    byType,
+    total: totalResult.count,
+    overTime: overTime.reverse(),
+  };
+}
+
+export async function getWidgetEngagementStats(period: string) {
+  const since = getPeriodDate(period);
+
+  const askConditions = since ? [gte(askQueries.createdAt, since)] : [];
+  const suggestConditions = since ? [gte(suggestions.createdAt, since)] : [];
+  const reportConditions = since ? [gte(reports.createdAt, since)] : [];
+
+  const [askCount] = await db.select({ count: count() }).from(askQueries)
+    .where(askConditions.length > 0 ? and(...askConditions) : undefined);
+  const [suggestCount] = await db.select({ count: count() }).from(suggestions)
+    .where(suggestConditions.length > 0 ? and(...suggestConditions) : undefined);
+  const [reportCount] = await db.select({ count: count() }).from(reports)
+    .where(reportConditions.length > 0 ? and(...reportConditions) : undefined);
+
+  // Average review time for suggestions (approved/rejected)
+  const reviewedSuggestions = await db.select({
+    createdAt: suggestions.createdAt,
+    reviewedAt: suggestions.reviewedAt,
+  }).from(suggestions)
+    .where(and(
+      ...(suggestConditions.length > 0 ? suggestConditions : []),
+      sql`${suggestions.reviewedAt} IS NOT NULL`,
+    ))
+    .limit(100);
+
+  let avgReviewMs = 0;
+  if (reviewedSuggestions.length > 0) {
+    const totalMs = reviewedSuggestions.reduce((sum, s) => {
+      return sum + (new Date(s.reviewedAt!).getTime() - new Date(s.createdAt).getTime());
+    }, 0);
+    avgReviewMs = totalMs / reviewedSuggestions.length;
+  }
+
+  return {
+    askQueries: askCount.count,
+    suggestions: suggestCount.count,
+    reports: reportCount.count,
+    avgReviewTimeHours: Math.round(avgReviewMs / (1000 * 60 * 60) * 10) / 10,
+  };
+}
+
+// --- Confidence Scoring ---
+
+export async function calculateConfidence(toolSlugs: string[]) {
+  if (toolSlugs.length === 0) return { level: "low" as const, score: 0, factors: ["No tools referenced"] };
+
+  let score = 0;
+  const factors: string[] = [];
+
+  // Data completeness (0-40 points) - check first tool's dimension scores
+  const allDims = await db.select().from(dimensions);
+  const totalDimensions = allDims.length || 6;
+
+  if (toolSlugs.length > 0) {
+    const [firstTool] = await db.select().from(tools).where(eq(tools.slug, toolSlugs[0]));
+    if (firstTool) {
+      const scores = await db.select().from(toolScores).where(eq(toolScores.toolId, firstTool.id));
+      const dimensionsScored = scores.filter(s => parseFloat(s.score) > 0).length;
+      const completeness = (dimensionsScored / totalDimensions) * 40;
+      score += completeness;
+      factors.push(`${dimensionsScored}/${totalDimensions} dimensions scored`);
+
+      // Data freshness (0-30 points)
+      const daysSinceUpdate = Math.floor((Date.now() - new Date(firstTool.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceUpdate < 30) score += 30;
+      else if (daysSinceUpdate < 90) score += 20;
+      else if (daysSinceUpdate < 180) score += 10;
+      factors.push(`Last updated ${daysSinceUpdate} days ago`);
+    }
+  }
+
+  // Database coverage (0-30 points)
+  const [publishedCount] = await db.select({ count: count() }).from(tools).where(eq(tools.status, "published"));
+  const totalTools = publishedCount.count;
+  if (totalTools >= 15) score += 30;
+  else if (totalTools >= 10) score += 20;
+  else if (totalTools >= 5) score += 10;
+  factors.push(`${totalTools} tools in database`);
+
+  const level = score >= 70 ? "high" as const : score >= 40 ? "medium" as const : "low" as const;
+
+  return { level, score: Math.round(score), factors };
 }

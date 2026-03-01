@@ -19,7 +19,20 @@ interface AskResponse {
   rationale: string[];
   alternatives: Array<{ toolSlug: string; toolName: string; reason: string }>;
   confidence: "high" | "medium" | "low";
+  confidenceDetails?: { level: string; score: number; factors: string[] } | null;
   sources: string[];
+}
+
+interface DuplicateSuggestion {
+  id: string;
+  type: string;
+  toolName: string;
+  toolSlug: string | null;
+  proposedQuadrant: string | null;
+  reason: string;
+  supportCount: number;
+  communityVerified: boolean;
+  createdAt: string;
 }
 
 interface ToolAutoComplete {
@@ -349,13 +362,16 @@ function AskMode({ onDisagree }: { onDisagree: (toolSlug?: string, toolName?: st
                 <span style={{ fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   Recommendation
                 </span>
-                <span style={{
-                  fontSize: 10,
-                  padding: "2px 6px",
-                  borderRadius: "var(--radius-full)",
-                  background: response.confidence === "high" ? "rgba(34,197,94,0.15)" : response.confidence === "medium" ? "rgba(234,179,8,0.15)" : "rgba(239,68,68,0.15)",
-                  color: response.confidence === "high" ? "var(--score-high)" : response.confidence === "medium" ? "var(--score-mid)" : "var(--score-low)",
-                }}>
+                <span
+                  title={response.confidenceDetails?.factors?.join(" | ") || ""}
+                  style={{
+                    fontSize: 10,
+                    padding: "2px 6px",
+                    borderRadius: "var(--radius-full)",
+                    background: response.confidence === "high" ? "rgba(34,197,94,0.15)" : response.confidence === "medium" ? "rgba(234,179,8,0.15)" : "rgba(239,68,68,0.15)",
+                    color: response.confidence === "high" ? "var(--score-high)" : response.confidence === "medium" ? "var(--score-mid)" : "var(--score-low)",
+                    cursor: "help",
+                  }}>
                   {response.confidence} confidence
                 </span>
               </div>
@@ -508,6 +524,10 @@ function SuggestMode({ toolContext }: { toolContext?: { slug: string; name: stri
   const [error, setError] = useState<string | null>(null);
   const [toolSuggestions, setToolSuggestions] = useState<ToolAutoComplete[]>([]);
   const [showToolDropdown, setShowToolDropdown] = useState(false);
+  const [duplicates, setDuplicates] = useState<DuplicateSuggestion[]>([]);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [supportingId, setSupportingId] = useState<string | null>(null);
+  const [supportSuccess, setSupportSuccess] = useState(false);
 
   // Tool autocomplete
   useEffect(() => {
@@ -524,6 +544,49 @@ function SuggestMode({ toolContext }: { toolContext?: { slug: string; name: stri
     }, 300);
     return () => clearTimeout(timer);
   }, [toolName]);
+
+  // Duplicate detection when type + tool name are set
+  useEffect(() => {
+    if (!suggestType || toolName.length < 2) { setDuplicates([]); return; }
+    const timer = setTimeout(async () => {
+      setCheckingDuplicates(true);
+      try {
+        const params = new URLSearchParams({ toolName, type: suggestType });
+        if (toolSlug) params.set("toolSlug", toolSlug);
+        const res = await fetch(`/api/v1/widget/suggest/check-duplicate?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDuplicates(data.data?.similar || []);
+        }
+      } catch { /* ignore */ }
+      setCheckingDuplicates(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [suggestType, toolName, toolSlug]);
+
+  const handleSupport = async (suggestionId: string) => {
+    setSupportingId(suggestionId);
+    try {
+      const res = await fetch("/api/v1/widget/suggest/support", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          suggestionId,
+          email: submitterEmail || undefined,
+          evidence: reason || undefined,
+        }),
+      });
+      if (res.ok) {
+        setSupportSuccess(true);
+      } else {
+        const err = await res.json();
+        setError(err.error?.message || "Failed to add support");
+      }
+    } catch {
+      setError("Failed to add support vote");
+    }
+    setSupportingId(null);
+  };
 
   const addEvidenceLink = () => {
     if (evidenceLinks.length < 3) setEvidenceLinks([...evidenceLinks, ""]);
@@ -577,6 +640,35 @@ function SuggestMode({ toolContext }: { toolContext?: { slug: string; name: stri
     }
   };
 
+  if (supportSuccess) {
+    return (
+      <div style={{ padding: "var(--space-6) var(--space-4)", textAlign: "center" }}>
+        <div style={{ fontSize: 32, marginBottom: "var(--space-3)" }}>✓</div>
+        <p style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 600, marginBottom: "var(--space-2)" }}>
+          Support added
+        </p>
+        <p style={{ fontSize: 11, color: "var(--text-muted)" }}>
+          Your voice has been added to the existing suggestion. Thank you!
+        </p>
+        <button
+          onClick={() => { setSupportSuccess(false); setSuggestType(null); setToolName(""); setReason(""); setDuplicates([]); }}
+          style={{
+            marginTop: "var(--space-4)",
+            padding: "var(--space-2) var(--space-4)",
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
+            fontSize: 11,
+          }}
+        >
+          Done
+        </button>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div style={{ padding: "var(--space-6) var(--space-4)", textAlign: "center" }}>
@@ -588,7 +680,7 @@ function SuggestMode({ toolContext }: { toolContext?: { slug: string; name: stri
           Our team will review your suggestion. Thank you for helping improve StackQuadrant.
         </p>
         <button
-          onClick={() => { setSuccess(false); setSuggestType(null); setToolName(""); setReason(""); setEvidenceLinks([""]); }}
+          onClick={() => { setSuccess(false); setSuggestType(null); setToolName(""); setReason(""); setEvidenceLinks([""]); setDuplicates([]); }}
           style={{
             marginTop: "var(--space-4)",
             padding: "var(--space-2) var(--space-4)",
@@ -704,6 +796,77 @@ function SuggestMode({ toolContext }: { toolContext?: { slug: string; name: stri
           </div>
         )}
       </div>
+
+      {/* Duplicate detection card */}
+      {checkingDuplicates && (
+        <div style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>
+          Checking for similar suggestions...
+        </div>
+      )}
+      {duplicates.length > 0 && !checkingDuplicates && (
+        <div style={{
+          padding: "var(--space-3)",
+          background: "rgba(234,179,8,0.08)",
+          border: "1px solid rgba(234,179,8,0.3)",
+          borderRadius: "var(--radius-sm)",
+        }}>
+          <p style={{ fontSize: 10, color: "var(--score-mid)", fontWeight: 600, marginBottom: "var(--space-2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Similar suggestion exists
+          </p>
+          <div style={{
+            padding: "var(--space-2)",
+            background: "var(--bg-elevated)",
+            borderRadius: "var(--radius-sm)",
+            marginBottom: "var(--space-2)",
+          }}>
+            <p style={{ fontSize: 11, color: "var(--text-primary)", fontWeight: 500 }}>
+              {duplicates[0].toolName} — {duplicates[0].reason.slice(0, 80)}{duplicates[0].reason.length > 80 ? "..." : ""}
+            </p>
+            <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-1)" }}>
+              <span style={{ fontSize: 9, color: "var(--text-muted)" }}>
+                {duplicates[0].supportCount} supporter{duplicates[0].supportCount !== 1 ? "s" : ""}
+              </span>
+              {duplicates[0].communityVerified && (
+                <span style={{ fontSize: 9, color: "var(--score-high)" }}>✓ Community verified</span>
+              )}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "var(--space-2)" }}>
+            <button
+              onClick={() => handleSupport(duplicates[0].id)}
+              disabled={!!supportingId}
+              style={{
+                flex: 1,
+                padding: "var(--space-1) var(--space-2)",
+                background: "var(--accent-primary)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                cursor: supportingId ? "not-allowed" : "pointer",
+                fontSize: 10,
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              {supportingId === duplicates[0].id ? "Adding..." : "Support this suggestion"}
+            </button>
+            <button
+              onClick={() => setDuplicates([])}
+              style={{
+                padding: "var(--space-1) var(--space-2)",
+                background: "var(--bg-elevated)",
+                color: "var(--text-muted)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                fontSize: 10,
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              Submit new
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Proposed quadrant (for move_tool) */}
       {suggestType === "move_tool" && (

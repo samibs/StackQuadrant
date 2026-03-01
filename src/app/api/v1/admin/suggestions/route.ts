@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || undefined;
     const type = searchParams.get("type") || undefined;
     const sort = searchParams.get("sort") || undefined;
+    const communityVerified = searchParams.get("communityVerified") === "true" ? true : undefined;
 
-    const result = await listSuggestions({ page, pageSize, status, type, sort });
+    const result = await listSuggestions({ page, pageSize, status, type, sort, communityVerified });
 
     return apiSuccess(result.suggestions, { page, pageSize, total: result.total });
   } catch (error) {

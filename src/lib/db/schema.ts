@@ -365,6 +365,10 @@ export const suggestions = pgTable("suggestions", {
   reviewedBy: varchar("reviewed_by", { length: 200 }),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   communityVerified: boolean("community_verified").notNull().default(false),
+  supportCount: integer("support_count").notNull().default(0),
+  supporterEmails: jsonb("supporter_emails").$type<string[]>().notNull().default([]),
+  supporterEvidence: jsonb("supporter_evidence").$type<Array<{ email?: string; evidence?: string; addedAt: string }>>().notNull().default([]),
+  ipHash: varchar("ip_hash", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
@@ -372,6 +376,7 @@ export const suggestions = pgTable("suggestions", {
   index("suggestions_tool_slug_idx").on(table.toolSlug),
   index("suggestions_type_idx").on(table.type),
   index("suggestions_created_at_idx").on(table.createdAt),
+  index("suggestions_community_verified_idx").on(table.communityVerified),
 ]);
 
 export const reports = pgTable("reports", {
@@ -431,3 +436,27 @@ export const toolChangelog = pgTable("tool_changelog", {
   index("tool_changelog_tool_slug_idx").on(table.toolSlug),
   index("tool_changelog_created_at_idx").on(table.createdAt),
 ]);
+
+// ============================================
+// Phase 2: Intelligence Layer
+// ============================================
+
+export const askQueries = pgTable("ask_queries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  query: text("query").notNull(),
+  normalizedQuery: text("normalized_query").notNull(),
+  responseConfidence: varchar("response_confidence", { length: 10 }),
+  toolsReferenced: jsonb("tools_referenced").$type<string[]>().notNull().default([]),
+  ipHash: varchar("ip_hash", { length: 64 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("ask_queries_created_at_idx").on(table.createdAt),
+  index("ask_queries_normalized_idx").on(table.normalizedQuery),
+]);
+
+export const appSettings = pgTable("app_settings", {
+  key: varchar("key", { length: 100 }).primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by", { length: 100 }),
+});
