@@ -1,7 +1,7 @@
 # StackQuadrant
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](CHANGELOG.md)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
@@ -44,7 +44,7 @@ A data-driven intelligence platform for evaluating AI coding tools, open-source 
 - **In-App Help** — Comprehensive guide to scores, navigation, and methodology at `/help`
 - **Command Palette** — `Cmd+K` / `Ctrl+K` search across tools, repos, showcase projects, quadrants, benchmarks, and stacks
 - **Dark/Light Theme** — Intelligence dashboard aesthetic with theme toggle
-- **Responsive Layout** — Scales from mobile phones to 34"+ ultrawide monitors
+- **Responsive Layout** — Scales from mobile phones to 34"+ ultrawide monitors with dedicated breakpoints at 1440px, 1920px, 2560px, and 3440px+
 - **Repos Page** — Full-viewport layout with category sidebar, dense card grid, owner-highlighted repos
 - **Admin Dashboard** — Full CRUD for managing all content, repo syncing, showcase moderation
 - **Evaluation Methodology** — Transparent scoring process documentation at `/methodology`
@@ -114,7 +114,7 @@ After seeding, log in at `/admin/login`:
 ```
 src/
 ├── app/
-│   ├── page.tsx                    # Dashboard (3-col viewport-filling grid)
+│   ├── page.tsx                    # Dashboard (responsive grid: 3-6 columns based on screen width)
 │   ├── matrix/                     # Capability matrix (sortable, filterable)
 │   ├── quadrants/                  # Magic quadrant views (responsive SVG)
 │   ├── tools/[slug]/               # Tool detail (radar chart, dimension scores, score history)

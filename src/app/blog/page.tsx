@@ -14,7 +14,7 @@ export default async function BlogPage() {
   const posts = await getPublishedBlogPosts();
 
   return (
-    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "var(--space-5) var(--space-4)" }}>
+    <div className="wide-container" style={{ maxWidth: "900px", margin: "0 auto", padding: "var(--space-5) var(--space-4)" }}>
       <div style={{ marginBottom: "var(--space-5)" }}>
         <h1 style={{ fontFamily: "var(--font-sans)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)" }}>
           Blog
@@ -38,7 +38,7 @@ export default async function BlogPage() {
           No articles published yet. Check back soon.
         </div>
       ) : (
-        <div className="flex flex-col" style={{ gap: "var(--space-4)" }}>
+        <div className="flex flex-col blog-post-list" style={{ gap: "var(--space-4)" }}>
           {posts.map((post) => (
             <Link
               key={post.id}

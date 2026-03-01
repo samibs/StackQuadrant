@@ -60,7 +60,7 @@ export function CompareClient({
   const availableTools = allTools.filter((t) => !selectedSlugs.includes(t.slug));
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "var(--space-5) var(--space-4)" }}>
+    <div className="wide-container" style={{ maxWidth: "1200px", margin: "0 auto", padding: "var(--space-5) var(--space-4)" }}>
       {/* Header */}
       <div style={{ marginBottom: "var(--space-5)" }}>
         <h1 style={{ fontFamily: "var(--font-sans)", fontSize: "20px", fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>

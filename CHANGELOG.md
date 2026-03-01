@@ -2,6 +2,21 @@
 
 All notable changes to StackQuadrant are documented here.
 
+## [2.2.0] - 2026-03-01
+
+### Added
+- **Ultrawide monitor support**: New responsive breakpoints at 1440px, 1920px, 2560px (QHD), and 3440px (UWQHD) for optimal use of screen real estate on wide and ultrawide displays
+- **Dashboard responsive grid**: Homepage dashboard expands from 3 columns to 4 (1920px+), 5 (2560px+), or 6 (3440px+) columns on wider screens
+- **Blog multi-column layout**: Blog posts display in 2-column (1440px+), 3-column (2560px+), or 4-column (3440px+) grid on wide screens
+- **Wide container scaling**: Blog, Compare, and Footer containers scale up from their base max-width to 1400px/1800px/2200px/3000px at progressive breakpoints
+- **Card grid scaling**: Quadrants, Benchmarks, Stacks, and Showcase card grids use larger minimum card widths (380px/420px/480px) on wider screens
+- **Empty state improvements**: Empty states on Quadrants, Benchmarks, Stacks, and Showcase pages now use minimum 30vh height (scaling to 40-50vh on ultrawide)
+
+### Changed
+- Homepage quadrant chart max height increased from 380px to 500px for better visibility
+- Hero description text no longer constrained to 600px max-width
+- Footer container now scales with wide-container breakpoints
+
 ## [2.1.0] - 2026-02-28
 
 ### Added
