@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || undefined;
     const type = searchParams.get("type") || undefined;
     const sort = searchParams.get("sort") || undefined;
+    const site = searchParams.get("site") || undefined;
 
-    const result = await listReports({ page, pageSize, status, type, sort });
+    const result = await listReports({ page, pageSize, status, type, sort, site });
 
     return apiSuccess(result.reports, { page, pageSize, total: result.total });
   } catch (error) {

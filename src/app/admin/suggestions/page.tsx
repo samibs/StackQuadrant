@@ -40,7 +40,20 @@ export default function AdminSuggestionsPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [siteFilter, setSiteFilter] = useState("");
+  const [siteOptions, setSiteOptions] = useState<Array<{ id: string; name: string }>>([]);
   const pageSize = 20;
+
+  // Fetch available sites
+  useEffect(() => {
+    if (loading) return;
+    authFetch("/api/v1/admin/sites").then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        setSiteOptions((data.data || []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
+      }
+    }).catch(() => {});
+  }, [loading, authFetch]);
 
   const fetchSuggestions = useCallback(async () => {
     try {
@@ -49,6 +62,7 @@ export default function AdminSuggestionsPage() {
       params.set("pageSize", String(pageSize));
       if (statusFilter) params.set("status", statusFilter);
       if (typeFilter) params.set("type", typeFilter);
+      if (siteFilter) params.set("site", siteFilter);
       params.set("sort", "-createdAt");
 
       const res = await authFetch(`/api/v1/admin/suggestions?${params.toString()}`);
@@ -58,7 +72,7 @@ export default function AdminSuggestionsPage() {
     } catch {
       /* auth redirect handled by hook */
     }
-  }, [authFetch, page, statusFilter, typeFilter]);
+  }, [authFetch, page, statusFilter, typeFilter, siteFilter]);
 
   useEffect(() => {
     if (loading) return;
@@ -143,6 +157,26 @@ export default function AdminSuggestionsPage() {
           <option value="merge_duplicates">Merge Duplicates</option>
           <option value="flag_discontinued">Flag Discontinued</option>
         </select>
+        {siteOptions.length > 1 && (
+          <select
+            value={siteFilter}
+            onChange={(e) => { setSiteFilter(e.target.value); setPage(1); }}
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              padding: "4px 8px",
+              background: "var(--bg-elevated)",
+              border: "1px solid var(--border-default)",
+              borderRadius: "var(--radius-sm)",
+              color: "var(--text-secondary)",
+            }}
+          >
+            <option value="">All Sites</option>
+            {siteOptions.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Table */}

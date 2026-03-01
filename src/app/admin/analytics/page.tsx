@@ -54,6 +54,8 @@ const TYPE_LABELS: Record<string, string> = {
 export default function AdminAnalyticsPage() {
   const { loading: authLoading, authFetch } = useAdmin();
   const [period, setPeriod] = useState("30d");
+  const [siteFilter, setSiteFilter] = useState("");
+  const [siteOptions, setSiteOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [suggestionData, setSuggestionData] = useState<SuggestionAnalytics | null>(null);
   const [reportData, setReportData] = useState<ReportAnalytics | null>(null);
   const [questionData, setQuestionData] = useState<QuestionData | null>(null);
@@ -62,13 +64,24 @@ export default function AdminAnalyticsPage() {
   const [thresholdInput, setThresholdInput] = useState("3");
   const [savingThreshold, setSavingThreshold] = useState(false);
 
+  useEffect(() => {
+    if (authLoading) return;
+    authFetch("/api/v1/admin/sites").then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        setSiteOptions((data.data || []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
+      }
+    }).catch(() => {});
+  }, [authLoading, authFetch]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const siteParam = siteFilter ? `&site=${siteFilter}` : "";
       const [sugRes, repRes, qRes, thRes] = await Promise.all([
-        authFetch(`/api/v1/admin/analytics/suggestions?period=${period}`),
-        authFetch(`/api/v1/admin/analytics/reports?period=${period}`),
-        authFetch(`/api/v1/admin/analytics/questions?period=${period}`),
+        authFetch(`/api/v1/admin/analytics/suggestions?period=${period}${siteParam}`),
+        authFetch(`/api/v1/admin/analytics/reports?period=${period}${siteParam}`),
+        authFetch(`/api/v1/admin/analytics/questions?period=${period}${siteParam}`),
         authFetch(`/api/v1/admin/settings/verification-threshold`),
       ]);
 
@@ -80,7 +93,7 @@ export default function AdminAnalyticsPage() {
       console.error("Failed to fetch analytics:", err);
     }
     setLoading(false);
-  }, [authFetch, period]);
+  }, [authFetch, period, siteFilter]);
 
   useEffect(() => { if (!authLoading) fetchData(); }, [authLoading, fetchData]);
 
@@ -113,7 +126,27 @@ export default function AdminAnalyticsPage() {
             Widget Analytics
           </h1>
         </div>
-        <div style={{ display: "flex", gap: "var(--space-2)" }}>
+        <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+          {siteOptions.length > 1 && (
+            <select
+              value={siteFilter}
+              onChange={(e) => setSiteFilter(e.target.value)}
+              style={{
+                padding: "var(--space-1) var(--space-3)",
+                background: "var(--bg-elevated)",
+                color: "var(--text-muted)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)",
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              <option value="">All Sites</option>
+              {siteOptions.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.value}

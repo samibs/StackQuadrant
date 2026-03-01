@@ -1,5 +1,5 @@
 import { db } from "./index";
-import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks, suggestions, reports, changeJobs, toolChangelog, askQueries, appSettings } from "./schema";
+import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks, suggestions, reports, changeJobs, toolChangelog, askQueries, appSettings, registeredSites } from "./schema";
 import { eq, and, sql, desc, asc, ilike, count, gte, lte } from "drizzle-orm";
 
 export async function getPublishedTools(opts: {
@@ -820,6 +820,7 @@ export async function createSuggestion(data: {
   submitterEmail?: string;
   context: { pageUrl?: string; toolCardId?: string; browser?: string; locale?: string };
   ipHash?: string;
+  site?: string;
 }) {
   const [inserted] = await db.insert(suggestions).values({
     type: data.type,
@@ -833,6 +834,7 @@ export async function createSuggestion(data: {
     submitterEmail: data.submitterEmail ?? null,
     context: data.context,
     ipHash: data.ipHash ?? null,
+    site: data.site ?? "stackquadrant",
   }).returning();
   return inserted;
 }
@@ -850,6 +852,7 @@ export async function createReport(data: {
   screenshotUrl?: string;
   submitterEmail?: string;
   context: { pageUrl?: string; browser?: string; locale?: string };
+  site?: string;
 }) {
   const [inserted] = await db.insert(reports).values({
     type: data.type,
@@ -864,6 +867,7 @@ export async function createReport(data: {
     screenshotUrl: data.screenshotUrl ?? null,
     submitterEmail: data.submitterEmail ?? null,
     context: data.context,
+    site: data.site ?? "stackquadrant",
   }).returning();
   return inserted;
 }
@@ -875,11 +879,13 @@ export async function listSuggestions(opts: {
   type?: string;
   sort?: string;
   communityVerified?: boolean;
+  site?: string;
 }) {
   const conditions = [];
   if (opts.status) conditions.push(eq(suggestions.status, opts.status));
   if (opts.type) conditions.push(eq(suggestions.type, opts.type));
   if (opts.communityVerified !== undefined) conditions.push(eq(suggestions.communityVerified, opts.communityVerified));
+  if (opts.site) conditions.push(eq(suggestions.site, opts.site));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -941,10 +947,12 @@ export async function listReports(opts: {
   status?: string;
   type?: string;
   sort?: string;
+  site?: string;
 }) {
   const conditions = [];
   if (opts.status) conditions.push(eq(reports.status, opts.status));
   if (opts.type) conditions.push(eq(reports.type, opts.type));
+  if (opts.site) conditions.push(eq(reports.site, opts.site));
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -1118,6 +1126,7 @@ export async function logAskQuery(data: {
   responseConfidence?: string;
   toolsReferenced: string[];
   ipHash?: string;
+  site?: string;
 }) {
   const [inserted] = await db.insert(askQueries).values({
     query: data.query,
@@ -1125,13 +1134,15 @@ export async function logAskQuery(data: {
     responseConfidence: data.responseConfidence ?? null,
     toolsReferenced: data.toolsReferenced,
     ipHash: data.ipHash ?? null,
+    site: data.site ?? "stackquadrant",
   }).returning();
   return inserted;
 }
 
-export async function getTopAskQueries(period: string, limit: number = 20) {
+export async function getTopAskQueries(period: string, limit: number = 20, site?: string) {
   const since = getPeriodDate(period);
   const conditions = since ? [gte(askQueries.createdAt, since)] : [];
+  if (site) conditions.push(eq(askQueries.site, site));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   return db.select({
@@ -1288,10 +1299,11 @@ function getPeriodDate(period: string): Date | null {
   }
 }
 
-export async function getSuggestionAnalytics(period: string) {
+export async function getSuggestionAnalytics(period: string, site?: string) {
   const since = getPeriodDate(period);
 
   const conditions = since ? [gte(suggestions.createdAt, since)] : [];
+  if (site) conditions.push(eq(suggestions.site, site));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const byType = await db.select({
@@ -1326,9 +1338,10 @@ export async function getSuggestionAnalytics(period: string) {
   };
 }
 
-export async function getReportAnalytics(period: string) {
+export async function getReportAnalytics(period: string, site?: string) {
   const since = getPeriodDate(period);
   const conditions = since ? [gte(reports.createdAt, since)] : [];
+  if (site) conditions.push(eq(reports.site, site));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const byType = await db.select({
@@ -1353,12 +1366,17 @@ export async function getReportAnalytics(period: string) {
   };
 }
 
-export async function getWidgetEngagementStats(period: string) {
+export async function getWidgetEngagementStats(period: string, site?: string) {
   const since = getPeriodDate(period);
 
   const askConditions = since ? [gte(askQueries.createdAt, since)] : [];
   const suggestConditions = since ? [gte(suggestions.createdAt, since)] : [];
   const reportConditions = since ? [gte(reports.createdAt, since)] : [];
+  if (site) {
+    askConditions.push(eq(askQueries.site, site));
+    suggestConditions.push(eq(suggestions.site, site));
+    reportConditions.push(eq(reports.site, site));
+  }
 
   const [askCount] = await db.select({ count: count() }).from(askQueries)
     .where(askConditions.length > 0 ? and(...askConditions) : undefined);
@@ -1435,4 +1453,67 @@ export async function calculateConfidence(toolSlugs: string[]) {
   const level = score >= 70 ? "high" as const : score >= 40 ? "medium" as const : "low" as const;
 
   return { level, score: Math.round(score), factors };
+}
+
+// ============================================
+// Phase 3: Registered Sites
+// ============================================
+
+export async function getRegisteredSites() {
+  return db.select().from(registeredSites).orderBy(asc(registeredSites.id));
+}
+
+export async function getRegisteredSite(id: string) {
+  const [site] = await db.select().from(registeredSites).where(eq(registeredSites.id, id));
+  return site || null;
+}
+
+export async function getActiveSiteIds(): Promise<string[]> {
+  const sites = await db.select({ id: registeredSites.id })
+    .from(registeredSites)
+    .where(eq(registeredSites.active, true));
+  return sites.map(s => s.id);
+}
+
+export async function createRegisteredSite(data: {
+  id: string;
+  name: string;
+  origin: string;
+  mcpConfig: Record<string, unknown>;
+  active?: boolean;
+}) {
+  const [inserted] = await db.insert(registeredSites).values({
+    id: data.id,
+    name: data.name,
+    origin: data.origin,
+    mcpConfig: data.mcpConfig as { systemPrompt?: string; tools?: string[]; resources?: string[] },
+    active: data.active ?? true,
+  }).returning();
+  return inserted;
+}
+
+export async function updateRegisteredSite(id: string, data: {
+  name?: string;
+  origin?: string;
+  mcpConfig?: Record<string, unknown>;
+  active?: boolean;
+}) {
+  const setValues: Record<string, unknown> = {};
+  if (data.name !== undefined) setValues.name = data.name;
+  if (data.origin !== undefined) setValues.origin = data.origin;
+  if (data.mcpConfig !== undefined) setValues.mcpConfig = data.mcpConfig;
+  if (data.active !== undefined) setValues.active = data.active;
+
+  const [updated] = await db.update(registeredSites)
+    .set(setValues)
+    .where(eq(registeredSites.id, id))
+    .returning();
+  return updated;
+}
+
+export async function deleteRegisteredSite(id: string) {
+  const [deleted] = await db.delete(registeredSites)
+    .where(eq(registeredSites.id, id))
+    .returning();
+  return deleted;
 }

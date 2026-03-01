@@ -369,6 +369,7 @@ export const suggestions = pgTable("suggestions", {
   supporterEmails: jsonb("supporter_emails").$type<string[]>().notNull().default([]),
   supporterEvidence: jsonb("supporter_evidence").$type<Array<{ email?: string; evidence?: string; addedAt: string }>>().notNull().default([]),
   ipHash: varchar("ip_hash", { length: 64 }),
+  site: varchar("site", { length: 50 }).notNull().default("stackquadrant"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
@@ -377,6 +378,7 @@ export const suggestions = pgTable("suggestions", {
   index("suggestions_type_idx").on(table.type),
   index("suggestions_created_at_idx").on(table.createdAt),
   index("suggestions_community_verified_idx").on(table.communityVerified),
+  index("suggestions_site_idx").on(table.site),
 ]);
 
 export const reports = pgTable("reports", {
@@ -397,12 +399,14 @@ export const reports = pgTable("reports", {
   adminNotes: text("admin_notes"),
   reviewedBy: varchar("reviewed_by", { length: 200 }),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  site: varchar("site", { length: 50 }).notNull().default("stackquadrant"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("reports_status_idx").on(table.status),
   index("reports_type_idx").on(table.type),
   index("reports_created_at_idx").on(table.createdAt),
+  index("reports_site_idx").on(table.site),
 ]);
 
 export const changeJobs = pgTable("change_jobs", {
@@ -416,6 +420,7 @@ export const changeJobs = pgTable("change_jobs", {
   executedBy: varchar("executed_by", { length: 200 }),
   executedAt: timestamp("executed_at", { withTimezone: true }),
   changelogEntryId: uuid("changelog_entry_id"),
+  site: varchar("site", { length: 50 }).notNull().default("stackquadrant"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("change_jobs_status_idx").on(table.status),
@@ -431,6 +436,7 @@ export const toolChangelog = pgTable("tool_changelog", {
   evidenceLinks: jsonb("evidence_links").$type<string[]>().default([]),
   suggestedBy: varchar("suggested_by", { length: 200 }),
   approvedBy: varchar("approved_by", { length: 200 }).notNull(),
+  site: varchar("site", { length: 50 }).notNull().default("stackquadrant"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("tool_changelog_tool_slug_idx").on(table.toolSlug),
@@ -448,10 +454,12 @@ export const askQueries = pgTable("ask_queries", {
   responseConfidence: varchar("response_confidence", { length: 10 }),
   toolsReferenced: jsonb("tools_referenced").$type<string[]>().notNull().default([]),
   ipHash: varchar("ip_hash", { length: 64 }),
+  site: varchar("site", { length: 50 }).notNull().default("stackquadrant"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("ask_queries_created_at_idx").on(table.createdAt),
   index("ask_queries_normalized_idx").on(table.normalizedQuery),
+  index("ask_queries_site_idx").on(table.site),
 ]);
 
 export const appSettings = pgTable("app_settings", {
@@ -459,4 +467,21 @@ export const appSettings = pgTable("app_settings", {
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by", { length: 100 }),
+});
+
+// ============================================
+// Phase 3: Multi-App Gateway
+// ============================================
+
+export const registeredSites = pgTable("registered_sites", {
+  id: varchar("id", { length: 50 }).primaryKey(), // e.g., 'stackquadrant', 'frontaliercalc'
+  name: varchar("name", { length: 100 }).notNull(),
+  origin: varchar("origin", { length: 255 }).notNull(),
+  mcpConfig: jsonb("mcp_config").notNull().$type<{
+    systemPrompt?: string;
+    tools?: string[];
+    resources?: string[];
+  }>(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

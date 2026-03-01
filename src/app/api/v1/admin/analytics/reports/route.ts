@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const period = request.nextUrl.searchParams.get("period") || "30d";
-    const analytics = await getReportAnalytics(period);
+    const site = request.nextUrl.searchParams.get("site") || undefined;
+    const analytics = await getReportAnalytics(period, site);
     return apiSuccess(analytics);
   } catch (error) {
     console.error("GET /api/v1/admin/analytics/reports error:", error);

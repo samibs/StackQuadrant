@@ -62,6 +62,7 @@ export default function AdminDashboardPage() {
     { label: "Suggestions", count: null, href: "/admin/suggestions", description: "Review community suggestions" },
     { label: "Reports", count: null, href: "/admin/reports", description: "Triage bug reports and data quality issues" },
     { label: "Analytics", count: null, href: "/admin/analytics", description: "Widget usage, question trends, engagement stats" },
+    { label: "Sites", count: null, href: "/admin/sites", description: "Manage registered sites for multi-app gateway" },
   ];
 
   return (

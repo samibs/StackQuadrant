@@ -10,10 +10,11 @@ export async function GET(request: NextRequest) {
   try {
     const period = request.nextUrl.searchParams.get("period") || "30d";
     const limit = parseInt(request.nextUrl.searchParams.get("limit") || "20", 10);
+    const site = request.nextUrl.searchParams.get("site") || undefined;
 
     const [questions, engagement] = await Promise.all([
-      getTopAskQueries(period, limit),
-      getWidgetEngagementStats(period),
+      getTopAskQueries(period, limit, site),
+      getWidgetEngagementStats(period, site),
     ]);
 
     return apiSuccess({ questions, engagement });
