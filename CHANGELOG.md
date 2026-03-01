@@ -2,6 +2,45 @@
 
 All notable changes to StackQuadrant are documented here.
 
+## [3.0.0] - 2026-03-01
+
+### Added
+- **Ask Widget** — Floating AI-powered assistant (bottom-right corner) that answers questions about tools, stacks, quadrants, and benchmarks using Claude with MCP tool-calling. Structured responses with recommendation cards, confidence scores, rationale bullets, alternatives, and a "Disagree?" flow into Suggest mode
+- **Suggest a Correction** — Structured suggestion forms for: Add tool, Move tool, Update metadata, Merge duplicates, Flag discontinued. Includes tool name autocomplete, evidence links, tags, user role, and auto-captured context (page URL, browser, locale). Rate limited to 5/hr per IP
+- **Report Issues** — Bug report form (page, description, expected result, screenshot upload) and Data quality report form (tool reference, field, current vs corrected value, evidence link). Rate limited: reports 10/hr, uploads 3/hr per IP
+- **"Suggest a correction" link** — Every tool detail page now shows a "✎ Suggest a correction" button that opens the widget pre-filled with tool context
+- **MCP Server** — Internal Model Context Protocol server exposing 12 tools (query_tools, get_tool_detail, compare_tools, query_quadrants, get_quadrant_detail, query_benchmarks, get_benchmark_detail, query_stacks, recommend_stack, search, query_repos, get_score_history) and 2 resources (dimensions, recent_changes) wrapping existing database queries
+- **Admin Suggestions Queue** — Review dashboard for community suggestions with status filters (pending, approved, rejected, needs_info), type badges, pagination, and one-click approve/reject/request-info actions
+- **Admin Suggestion Detail** — Evidence-first review page showing existing record diff preview, evidence links, similar past suggestions, and action modals
+- **Admin Reports Page** — Filterable report queue with inline status changes, type badges (bug/data_quality), and pagination
+- **Change Job Pipeline** — Approved suggestions create change jobs that record intended operations (insert, update, merge, flag) with payload. Jobs can be executed to create tool changelog entries. No direct production writes
+- **Tool Changelog API** — Public `GET /api/v1/tools/:slug/changelog` endpoint returning the change history for any tool
+- **Screenshot Upload** — Bug reports support screenshot attachments with magic-byte validation (PNG/JPEG/WebP only), 5MB limit, stored in `public/uploads/screenshots/`
+- **Email Notifications** — Admin "Request Info" action sends emails to suggestion submitters via Nodemailer/Zoho SMTP asking for clarification
+
+### Database
+- New table: `suggestions` (19 columns — type, tool context, evidence, tags, user role, status workflow, community verification flag)
+- New table: `reports` (19 columns — bug/data quality types, screenshot URL, field reference, status workflow)
+- New table: `change_jobs` (11 columns — suggestion FK, operation payload, execution tracking, changelog link)
+- New table: `tool_changelog` (9 columns — tool slug, change type, summary, evidence links, attribution)
+- 16 new query functions in `queries.ts`
+
+### API Endpoints (new)
+- `POST /api/v1/widget/ask` — AI-powered query with MCP tool-use loop (rate: 20/hr)
+- `POST /api/v1/widget/suggest` — Submit structured suggestion (rate: 5/hr)
+- `POST /api/v1/widget/report` — Submit bug/data report (rate: 10/hr)
+- `POST /api/v1/widget/report/upload` — Screenshot upload (rate: 3/hr)
+- `GET /api/v1/admin/suggestions` — List suggestions with filters
+- `GET /api/v1/admin/suggestions/:id` — Suggestion detail with similar matches
+- `POST /api/v1/admin/suggestions/:id/approve` — Approve and create change job
+- `POST /api/v1/admin/suggestions/:id/reject` — Reject with reason
+- `POST /api/v1/admin/suggestions/:id/request-info` — Email submitter for clarification
+- `GET /api/v1/admin/reports` — List reports with filters
+- `GET/PUT /api/v1/admin/reports/:id` — Report detail and status update
+- `GET /api/v1/admin/change-jobs` — List change jobs
+- `POST /api/v1/admin/change-jobs/:id/execute` — Execute change job and create changelog
+- `GET /api/v1/tools/:slug/changelog` — Public tool changelog
+
 ## [2.2.0] - 2026-03-01
 
 ### Added

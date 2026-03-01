@@ -1,5 +1,5 @@
 import { db } from "./index";
-import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks } from "./schema";
+import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks, suggestions, reports, changeJobs, toolChangelog } from "./schema";
 import { eq, and, sql, desc, asc, ilike, count } from "drizzle-orm";
 
 export async function getPublishedTools(opts: {
@@ -802,4 +802,301 @@ export async function getShowcaseByTool(toolSlug: string) {
     .orderBy(desc(showcaseProjects.publishedAt));
 
   return { tool, projects };
+}
+
+// ============================================
+// Community Widget: Suggestions, Reports, Change Jobs
+// ============================================
+
+export async function createSuggestion(data: {
+  type: string;
+  toolName: string;
+  toolSlug?: string;
+  proposedQuadrant?: string;
+  reason: string;
+  evidenceLinks: string[];
+  tags: string[];
+  userRole: string;
+  submitterEmail?: string;
+  context: { pageUrl?: string; toolCardId?: string; browser?: string; locale?: string };
+}) {
+  const [inserted] = await db.insert(suggestions).values({
+    type: data.type,
+    toolName: data.toolName,
+    toolSlug: data.toolSlug ?? null,
+    proposedQuadrant: data.proposedQuadrant ?? null,
+    reason: data.reason,
+    evidenceLinks: data.evidenceLinks,
+    tags: data.tags,
+    userRole: data.userRole,
+    submitterEmail: data.submitterEmail ?? null,
+    context: data.context,
+  }).returning();
+  return inserted;
+}
+
+export async function createReport(data: {
+  type: string;
+  toolSlug?: string;
+  page?: string;
+  description: string;
+  expectedResult?: string;
+  currentValue?: string;
+  correctedValue?: string;
+  fieldReference?: string;
+  evidenceLink?: string;
+  screenshotUrl?: string;
+  submitterEmail?: string;
+  context: { pageUrl?: string; browser?: string; locale?: string };
+}) {
+  const [inserted] = await db.insert(reports).values({
+    type: data.type,
+    toolSlug: data.toolSlug ?? null,
+    page: data.page ?? null,
+    description: data.description,
+    expectedResult: data.expectedResult ?? null,
+    currentValue: data.currentValue ?? null,
+    correctedValue: data.correctedValue ?? null,
+    fieldReference: data.fieldReference ?? null,
+    evidenceLink: data.evidenceLink ?? null,
+    screenshotUrl: data.screenshotUrl ?? null,
+    submitterEmail: data.submitterEmail ?? null,
+    context: data.context,
+  }).returning();
+  return inserted;
+}
+
+export async function listSuggestions(opts: {
+  page: number;
+  pageSize: number;
+  status?: string;
+  type?: string;
+  sort?: string;
+}) {
+  const conditions = [];
+  if (opts.status) conditions.push(eq(suggestions.status, opts.status));
+  if (opts.type) conditions.push(eq(suggestions.type, opts.type));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalResult] = await db.select({ count: count() }).from(suggestions).where(where);
+  const total = totalResult.count;
+
+  const sortValue = opts.sort || "-createdAt";
+  const sortDesc = sortValue.startsWith("-");
+  const sortField = sortValue.replace(/^-/, "");
+  const sortColumn = sortField === "createdAt" ? suggestions.createdAt
+    : sortField === "updatedAt" ? suggestions.updatedAt
+    : sortField === "toolName" ? suggestions.toolName
+    : sortField === "status" ? suggestions.status
+    : suggestions.createdAt;
+
+  const suggestionList = await db.select().from(suggestions).where(where)
+    .orderBy(sortDesc ? desc(sortColumn) : asc(sortColumn))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { suggestions: suggestionList, total };
+}
+
+export async function getSuggestionById(id: string) {
+  const [suggestion] = await db.select().from(suggestions).where(eq(suggestions.id, id));
+  if (!suggestion) return null;
+
+  const relatedJobs = await db.select().from(changeJobs)
+    .where(eq(changeJobs.suggestionId, id))
+    .orderBy(desc(changeJobs.createdAt));
+
+  return { ...suggestion, changeJobs: relatedJobs };
+}
+
+export async function updateSuggestionStatus(id: string, data: {
+  status: string;
+  adminNotes?: string;
+  rejectionReason?: string;
+  reviewedBy: string;
+}) {
+  const [updated] = await db.update(suggestions)
+    .set({
+      status: data.status,
+      adminNotes: data.adminNotes ?? null,
+      rejectionReason: data.rejectionReason ?? null,
+      reviewedBy: data.reviewedBy,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(suggestions.id, id))
+    .returning();
+  return updated;
+}
+
+export async function listReports(opts: {
+  page: number;
+  pageSize: number;
+  status?: string;
+  type?: string;
+  sort?: string;
+}) {
+  const conditions = [];
+  if (opts.status) conditions.push(eq(reports.status, opts.status));
+  if (opts.type) conditions.push(eq(reports.type, opts.type));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalResult] = await db.select({ count: count() }).from(reports).where(where);
+  const total = totalResult.count;
+
+  const sortValue = opts.sort || "-createdAt";
+  const sortDesc = sortValue.startsWith("-");
+  const sortField = sortValue.replace(/^-/, "");
+  const sortColumn = sortField === "createdAt" ? reports.createdAt
+    : sortField === "updatedAt" ? reports.updatedAt
+    : sortField === "type" ? reports.type
+    : sortField === "status" ? reports.status
+    : reports.createdAt;
+
+  const reportList = await db.select().from(reports).where(where)
+    .orderBy(sortDesc ? desc(sortColumn) : asc(sortColumn))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { reports: reportList, total };
+}
+
+export async function getReportById(id: string) {
+  const [report] = await db.select().from(reports).where(eq(reports.id, id));
+  return report || null;
+}
+
+export async function updateReport(id: string, data: {
+  status?: string;
+  adminNotes?: string;
+  reviewedBy?: string;
+}) {
+  const setValues: Record<string, unknown> = { updatedAt: new Date() };
+  if (data.status !== undefined) setValues.status = data.status;
+  if (data.adminNotes !== undefined) setValues.adminNotes = data.adminNotes;
+  if (data.reviewedBy !== undefined) {
+    setValues.reviewedBy = data.reviewedBy;
+    setValues.reviewedAt = new Date();
+  }
+
+  const [updated] = await db.update(reports)
+    .set(setValues)
+    .where(eq(reports.id, id))
+    .returning();
+  return updated;
+}
+
+export async function createChangeJob(data: {
+  suggestionId: string;
+  tableName: string;
+  recordId?: string;
+  operation: string;
+  payload: Record<string, { old?: unknown; new: unknown }>;
+}) {
+  const [inserted] = await db.insert(changeJobs).values({
+    suggestionId: data.suggestionId,
+    tableName: data.tableName,
+    recordId: data.recordId ?? null,
+    operation: data.operation,
+    payload: data.payload,
+  }).returning();
+  return inserted;
+}
+
+export async function updateChangeJobStatus(id: string, data: {
+  status: string;
+  executedBy?: string;
+  changelogEntryId?: string;
+}) {
+  const setValues: Record<string, unknown> = { status: data.status };
+  if (data.executedBy !== undefined) {
+    setValues.executedBy = data.executedBy;
+    setValues.executedAt = new Date();
+  }
+  if (data.changelogEntryId !== undefined) setValues.changelogEntryId = data.changelogEntryId;
+
+  const [updated] = await db.update(changeJobs)
+    .set(setValues)
+    .where(eq(changeJobs.id, id))
+    .returning();
+  return updated;
+}
+
+export async function getChangeJobById(id: string) {
+  const [job] = await db.select().from(changeJobs).where(eq(changeJobs.id, id));
+  if (!job) return null;
+
+  const [suggestion] = await db.select().from(suggestions).where(eq(suggestions.id, job.suggestionId));
+  return { ...job, suggestion: suggestion || null };
+}
+
+export async function listChangeJobs(opts: {
+  page: number;
+  pageSize: number;
+  status?: string;
+}) {
+  const conditions = [];
+  if (opts.status) conditions.push(eq(changeJobs.status, opts.status));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalResult] = await db.select({ count: count() }).from(changeJobs).where(where);
+  const total = totalResult.count;
+
+  const jobList = await db.select().from(changeJobs).where(where)
+    .orderBy(desc(changeJobs.createdAt))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { changeJobs: jobList, total };
+}
+
+export async function createToolChangelogEntry(data: {
+  toolSlug: string;
+  changeType: string;
+  summary: string;
+  details: { field?: string; oldValue?: unknown; newValue?: unknown };
+  evidenceLinks: string[];
+  suggestedBy?: string;
+  approvedBy: string;
+}) {
+  const [inserted] = await db.insert(toolChangelog).values({
+    toolSlug: data.toolSlug,
+    changeType: data.changeType,
+    summary: data.summary,
+    details: data.details,
+    evidenceLinks: data.evidenceLinks,
+    suggestedBy: data.suggestedBy ?? null,
+    approvedBy: data.approvedBy,
+  }).returning();
+  return inserted;
+}
+
+export async function getToolChangelog(toolSlug: string) {
+  return db.select().from(toolChangelog)
+    .where(eq(toolChangelog.toolSlug, toolSlug))
+    .orderBy(desc(toolChangelog.createdAt));
+}
+
+export async function checkCommunityVerification(toolSlug: string, type: string, proposedValue: string) {
+  const [result] = await db.select({ count: count() }).from(suggestions)
+    .where(and(
+      eq(suggestions.toolSlug, toolSlug),
+      eq(suggestions.type, type),
+      eq(suggestions.proposedQuadrant, proposedValue),
+      eq(suggestions.status, "pending"),
+    ));
+  return result.count;
+}
+
+export async function getSimilarSuggestions(toolSlug: string, type: string) {
+  return db.select().from(suggestions)
+    .where(and(
+      eq(suggestions.toolSlug, toolSlug),
+      eq(suggestions.type, type),
+    ))
+    .orderBy(desc(suggestions.createdAt))
+    .limit(20);
 }

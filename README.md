@@ -1,13 +1,13 @@
 # StackQuadrant
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](CHANGELOG.md)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **The Gartner Magic Quadrant for AI developer tools — built by developers, for developers.**
 
-A data-driven intelligence platform for evaluating AI coding tools, open-source AI/LLM repositories, and community-built vibe-coded projects. Scores, benchmarks, quadrant charts, and an auto-scored ecosystem directory with 30+ repos.
+A data-driven intelligence platform for evaluating AI coding tools, open-source AI/LLM repositories, and community-built vibe-coded projects. Scores, benchmarks, quadrant charts, an auto-scored ecosystem directory with 30+ repos, and an AI-powered Ask + Suggest + Report widget for community-driven data quality.
 
 ![StackQuadrant Dashboard](public/screenshot-dashboard.png)
 
@@ -39,6 +39,14 @@ A data-driven intelligence platform for evaluating AI coding tools, open-source 
 - **Quality Scoring** — Projects rated on: Does it work? Code quality? Is it shipped?
 - **Built-With Pages** — Browse projects filtered by the AI tool used to build them
 
+### Ask + Suggest + Report Widget
+- **Ask Widget** — Floating AI assistant (bottom-right) powered by Claude with MCP tool-calling. Ask about tools, stacks, quadrants, benchmarks — get structured responses with recommendation cards, confidence scores, rationale, and alternatives
+- **Suggest a Correction** — Structured forms for: Add tool, Move tool, Update metadata, Merge duplicates, Flag discontinued. Evidence links, tags, user role, auto-captured context
+- **Report Issues** — Bug reports with screenshot upload + Data quality reports with field-level corrections
+- **"Suggest a correction" Link** — Every tool detail page includes a correction button that opens the widget pre-filled with tool context
+- **Admin Review Dashboard** — Suggestions queue with status filters, evidence-first detail view, one-click approve/reject/request-info, change job pipeline
+- **Tool Changelog** — Public change history per tool, generated from approved suggestions
+
 ### Platform Features
 - **Contextual Tooltips** — Hover any score, dimension header, or metric for explanations with evidence
 - **In-App Help** — Comprehensive guide to scores, navigation, and methodology at `/help`
@@ -46,7 +54,8 @@ A data-driven intelligence platform for evaluating AI coding tools, open-source 
 - **Dark/Light Theme** — Intelligence dashboard aesthetic with theme toggle
 - **Responsive Layout** — Scales from mobile phones to 34"+ ultrawide monitors with dedicated breakpoints at 1440px, 1920px, 2560px, and 3440px+
 - **Repos Page** — Full-viewport layout with category sidebar, dense card grid, owner-highlighted repos
-- **Admin Dashboard** — Full CRUD for managing all content, repo syncing, showcase moderation
+- **Admin Dashboard** — Full CRUD for managing all content, repo syncing, showcase moderation, suggestion review, report triage
+- **MCP Server** — Internal Model Context Protocol server exposing 12 tools and 2 resources wrapping existing database queries
 - **Evaluation Methodology** — Transparent scoring process documentation at `/methodology`
 
 ## Tech Stack
@@ -133,25 +142,28 @@ src/
 │   ├── compare/                    # Side-by-side tool comparison
 │   ├── methodology/                # Evaluation methodology
 │   ├── help/                       # In-app help & user guide
-│   ├── admin/                      # Admin dashboard (CRUD)
+│   ├── admin/                      # Admin dashboard (CRUD, suggestions, reports)
 │   └── api/v1/                     # REST API
-│       ├── tools/                  # Public tool endpoints
+│       ├── tools/                  # Public tool endpoints + changelog
 │       ├── quadrants/              # Public quadrant endpoints
 │       ├── benchmarks/             # Public benchmark endpoints
 │       ├── stacks/                 # Public stack endpoints
 │       ├── repos/                  # Public repo endpoints
 │       ├── showcase/               # Public showcase + submission endpoints
+│       ├── widget/                 # Ask, Suggest, Report widget endpoints
 │       ├── search/                 # Search index
 │       ├── auth/login/             # Admin authentication
 │       ├── subscribers/            # Newsletter signup
-│       └── admin/                  # Admin CRUD endpoints
+│       └── admin/                  # Admin CRUD + suggestions + reports + change-jobs
 ├── components/
 │   ├── layout/                     # Header, Panel, ThemeProvider, OurProjectsBadge
 │   ├── visualizations/             # ScoreRing, RadarChart, QuadrantChart, ScoreBar, Sparkline
+│   ├── widget/                     # AskWidget, SuggestCorrectionLink
 │   ├── seo/                        # JSON-LD structured data
 │   └── ui/                         # Tooltip, InfoIcon, Skeleton, CommandPalette, Breadcrumb
 ├── lib/
 │   ├── db/                         # Schema, queries, seed
+│   ├── mcp/                        # MCP server (12 tools, 2 resources)
 │   ├── services/                   # GitHub API service
 │   ├── hooks/                      # useAdmin hook
 │   └── utils/                      # API helpers, auth, email, validation, rate limiting
@@ -214,6 +226,11 @@ Community projects are rated on three criteria (each 0-10):
 | POST | `/api/v1/showcase/submit` | Submit a project (rate limited: 3/hr, live URL optional) |
 | GET | `/api/v1/showcase/github-info?url=` | Fetch GitHub repo info for form auto-fill |
 | GET | `/api/v1/showcase/verify?token=` | Email verification callback |
+| GET | `/api/v1/tools/:slug/changelog` | Tool change history |
+| POST | `/api/v1/widget/ask` | AI-powered query with MCP tools (rate: 20/hr) |
+| POST | `/api/v1/widget/suggest` | Submit structured suggestion (rate: 5/hr) |
+| POST | `/api/v1/widget/report` | Submit bug/data report (rate: 10/hr) |
+| POST | `/api/v1/widget/report/upload` | Screenshot upload (rate: 3/hr) |
 | GET | `/api/v1/search` | Search index for command palette |
 | POST | `/api/v1/subscribers` | Newsletter signup |
 | GET | `/api/health` | Health check |
@@ -246,6 +263,15 @@ Community projects are rated on three criteria (each 0-10):
 | POST | `/api/v1/admin/showcase/:id/approve` | Approve and publish |
 | POST | `/api/v1/admin/showcase/:id/reject` | Reject with reason |
 | POST | `/api/v1/admin/showcase/:id/score` | Set quality scores |
+| GET | `/api/v1/admin/suggestions` | List suggestions (filterable by status/type) |
+| GET | `/api/v1/admin/suggestions/:id` | Suggestion detail with similar matches |
+| POST | `/api/v1/admin/suggestions/:id/approve` | Approve and create change job |
+| POST | `/api/v1/admin/suggestions/:id/reject` | Reject with reason |
+| POST | `/api/v1/admin/suggestions/:id/request-info` | Email submitter for clarification |
+| GET | `/api/v1/admin/reports` | List reports (filterable by status/type) |
+| GET/PUT | `/api/v1/admin/reports/:id` | Report detail and status update |
+| GET | `/api/v1/admin/change-jobs` | List change jobs |
+| POST | `/api/v1/admin/change-jobs/:id/execute` | Execute change job, create changelog |
 
 ## Database Commands
 
@@ -321,7 +347,8 @@ Scores use logarithmic normalization for wide-range metrics and linear/freshness
 - **No marketing bias** — Scores are derived from real benchmarks and GitHub metrics, not vendor demos
 - **Auto-scored repos** — Quality scores generated from live data, not opinions
 - **Full transparency** — Every score includes evidence text explaining what contributed
-- **Community-driven** — Submit your AI-built projects, contribute evaluations
+- **Community-driven** — Submit projects, suggest corrections, report issues — all from one widget
+- **AI-powered assistance** — Ask questions about tools and get structured, evidence-based answers
 - **Weekly discovery** — New AI/LLM repos found and scored automatically
 
 ## Contributing

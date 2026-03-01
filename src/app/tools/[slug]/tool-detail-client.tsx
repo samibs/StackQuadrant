@@ -7,6 +7,7 @@ import { ScoreRing } from "@/components/visualizations/score-ring";
 import { ScoreBar } from "@/components/visualizations/score-bar";
 import { RadarChart } from "@/components/visualizations/radar-chart";
 import { ScoreLegend } from "@/components/ui/tooltip";
+import { SuggestCorrectionLink } from "@/components/widget/suggest-correction-link";
 
 interface ToolDetail {
   id: string;
@@ -134,6 +135,7 @@ export function ToolDetailClient({ tool, scoreHistory, overallTrend }: { tool: T
             <Link href={`/compare?tools=${tool.slug}`} style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>
               Compare &rarr;
             </Link>
+            <SuggestCorrectionLink toolSlug={tool.slug} toolName={tool.name} />
             {tool.updatedAt && (
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
                 Last evaluated: {new Date(tool.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

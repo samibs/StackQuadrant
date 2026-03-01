@@ -342,3 +342,92 @@ export const showcaseToolLinks = pgTable("showcase_tool_links", {
   index("showcase_tool_links_tool_idx").on(table.toolId),
   index("showcase_tool_links_project_idx").on(table.projectId),
 ]);
+
+// ============================================
+// Community Widget: Ask + Suggest + Report
+// ============================================
+
+export const suggestions = pgTable("suggestions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: varchar("type", { length: 30 }).notNull(), // add_tool, move_tool, update_metadata, merge_duplicates, flag_discontinued
+  toolName: varchar("tool_name", { length: 200 }).notNull(),
+  toolSlug: varchar("tool_slug", { length: 200 }),
+  proposedQuadrant: varchar("proposed_quadrant", { length: 50 }),
+  reason: text("reason").notNull(),
+  evidenceLinks: jsonb("evidence_links").$type<string[]>().notNull().default([]),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  userRole: varchar("user_role", { length: 20 }).notNull().default("user"), // user, vendor, observer
+  submitterEmail: varchar("submitter_email", { length: 320 }),
+  context: jsonb("context").notNull().$type<{ pageUrl?: string; toolCardId?: string; browser?: string; locale?: string }>(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, approved, rejected, needs_info
+  adminNotes: text("admin_notes"),
+  rejectionReason: text("rejection_reason"),
+  reviewedBy: varchar("reviewed_by", { length: 200 }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  communityVerified: boolean("community_verified").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("suggestions_status_idx").on(table.status),
+  index("suggestions_tool_slug_idx").on(table.toolSlug),
+  index("suggestions_type_idx").on(table.type),
+  index("suggestions_created_at_idx").on(table.createdAt),
+]);
+
+export const reports = pgTable("reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: varchar("type", { length: 20 }).notNull(), // bug, data_quality
+  toolSlug: varchar("tool_slug", { length: 200 }),
+  page: varchar("page", { length: 500 }),
+  description: text("description").notNull(),
+  expectedResult: text("expected_result"),
+  currentValue: text("current_value"),
+  correctedValue: text("corrected_value"),
+  fieldReference: varchar("field_reference", { length: 100 }),
+  evidenceLink: varchar("evidence_link", { length: 500 }),
+  screenshotUrl: varchar("screenshot_url", { length: 500 }),
+  submitterEmail: varchar("submitter_email", { length: 320 }),
+  context: jsonb("context").notNull().$type<{ pageUrl?: string; browser?: string; locale?: string }>(),
+  status: varchar("status", { length: 20 }).notNull().default("new"), // new, investigating, fixed, closed, wont_fix
+  adminNotes: text("admin_notes"),
+  reviewedBy: varchar("reviewed_by", { length: 200 }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("reports_status_idx").on(table.status),
+  index("reports_type_idx").on(table.type),
+  index("reports_created_at_idx").on(table.createdAt),
+]);
+
+export const changeJobs = pgTable("change_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  suggestionId: uuid("suggestion_id").notNull().references(() => suggestions.id, { onDelete: "cascade" }),
+  tableName: varchar("table_name", { length: 100 }).notNull(),
+  recordId: uuid("record_id"),
+  operation: varchar("operation", { length: 20 }).notNull(), // insert, update, delete
+  payload: jsonb("payload").notNull().$type<Record<string, { old?: unknown; new: unknown }>>(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, executed, failed, rolled_back
+  executedBy: varchar("executed_by", { length: 200 }),
+  executedAt: timestamp("executed_at", { withTimezone: true }),
+  changelogEntryId: uuid("changelog_entry_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("change_jobs_status_idx").on(table.status),
+  index("change_jobs_suggestion_idx").on(table.suggestionId),
+]);
+
+export const toolChangelog = pgTable("tool_changelog", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  toolSlug: varchar("tool_slug", { length: 200 }).notNull(),
+  changeType: varchar("change_type", { length: 50 }).notNull(), // quadrant_move, metadata_update, score_change, added, discontinued
+  summary: text("summary").notNull(),
+  details: jsonb("details").notNull().$type<{ field?: string; oldValue?: unknown; newValue?: unknown }>(),
+  evidenceLinks: jsonb("evidence_links").$type<string[]>().default([]),
+  suggestedBy: varchar("suggested_by", { length: 200 }),
+  approvedBy: varchar("approved_by", { length: 200 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("tool_changelog_tool_slug_idx").on(table.toolSlug),
+  index("tool_changelog_created_at_idx").on(table.createdAt),
+]);

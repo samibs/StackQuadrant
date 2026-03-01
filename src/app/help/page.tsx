@@ -3,7 +3,7 @@ import { Panel } from "@/components/layout/panel";
 
 export const metadata = {
   title: "Help & User Guide",
-  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, and use keyboard shortcuts.",
+  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, use the Ask widget, suggest corrections, and report issues.",
   alternates: { canonical: "/help" },
 };
 
@@ -133,6 +133,25 @@ export default function HelpPage() {
               ))}
             </div>
           </Panel>
+
+          <Panel title="Ask Widget">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>Click the <strong style={{ color: "var(--text-primary)" }}>? button</strong> in the bottom-right corner to open the Ask + Suggest + Report widget. It has three modes:</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Ask Mode</div>
+                <p style={{ fontSize: "11px" }}>Ask questions about tools, stacks, and quadrants. The AI uses MCP tools to query real data and returns structured answers with recommendation cards, confidence scores, rationale bullets, and alternatives. Use quick prompts or type your own question.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Suggest Mode</div>
+                <p style={{ fontSize: "11px" }}>Submit structured corrections: add a missing tool, move a tool to a different quadrant, update metadata, merge duplicates, or flag discontinued tools. Include evidence links and your reasoning. Rate limited to 5 submissions per hour.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Report Mode</div>
+                <p style={{ fontSize: "11px" }}>Report bugs (what happened vs expected, with optional screenshot) or data quality issues (specify the field, current value, and corrected value with evidence). Rate limited to 10 reports per hour.</p>
+              </div>
+              <p style={{ fontSize: "11px" }}>You can also click <strong style={{ color: "var(--text-primary)" }}>&quot;Suggest a correction&quot;</strong> on any tool detail page to open the widget pre-filled with that tool&apos;s context.</p>
+            </div>
+          </Panel>
         </div>
 
         {/* Column 3 — Quadrants & Admin */}
@@ -215,6 +234,9 @@ export default function HelpPage() {
                   <li>Add AI/LLM repos, trigger GitHub sync, score quality dimensions</li>
                   <li>Manage repo categories (add, edit, reorder)</li>
                   <li>Moderate showcase submissions (approve, reject, quality-score)</li>
+                  <li>Review community suggestions (approve, reject, request info)</li>
+                  <li>Triage bug reports and data quality issues</li>
+                  <li>Execute change jobs and track tool changelogs</li>
                 </ul>
               </div>
               <p>All entities have a <strong style={{ color: "var(--text-primary)" }}>published</strong> status — unpublished items are only visible in the admin panel. Showcase projects follow a verification pipeline: submitted → email verified → admin review → published.</p>
