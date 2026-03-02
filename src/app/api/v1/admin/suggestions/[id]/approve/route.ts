@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/utils/api";
 import { requireAdmin } from "@/lib/utils/auth";
-import { getSuggestionById, updateSuggestionStatus, createChangeJob } from "@/lib/db/queries";
+import { getSuggestionById, updateSuggestionStatus, createChangeJob, updateContributorOnStatusChange } from "@/lib/db/queries";
+import { sendSuggestionNotification } from "@/lib/utils/notifications";
 
 function slugify(text: string): string {
   return text
@@ -112,6 +113,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       operation: changeJobPayload.operation,
       payload: changeJobPayload.payload,
     });
+
+    // Update contributor reputation + send notification
+    if (suggestion.submitterEmail) {
+      updateContributorOnStatusChange(suggestion.submitterEmail, "approved").catch((err) =>
+        console.error("Contributor update failed:", err)
+      );
+      sendSuggestionNotification(suggestion, "approved").catch((err) =>
+        console.error("Notification failed:", err)
+      );
+    }
 
     return apiSuccess({ suggestion: updated, changeJob });
   } catch (error) {

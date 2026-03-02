@@ -2,6 +2,80 @@
 
 All notable changes to StackQuadrant are documented here.
 
+## [4.0.0] - 2026-03-02
+
+### Added — PainGaps Retail Intelligence
+- **Pain Point Scans** — Run AI-powered scans on any product/tool to detect user pain points from Reddit, review sites, Google Autocomplete, and Twitter. Scans produce structured pain signals with severity, frequency, trend direction, and evidence counts
+- **AI Pain Analysis** — OpenAI-powered analysis of collected pain signals: generates titles, summaries, intensity/frequency/opportunity scores, affected user segments, root causes, and competitive gaps
+- **Billing & Plans** — Free/Starter/Pro tiered billing via Stripe integration with checkout, portal, and webhook handling. Plan limits enforce scan counts, pain point views, and feature access
+- **User Authentication** — JWT-based dual auth system: 15-minute access tokens + 30-day rotating refresh tokens, signup with plan selection, login, logout, and session refresh
+- **Pain Universe Search** — Pro-only cross-scan search across all detected pain points with keyword, severity, trend, source, and date range filters. Includes competitive gap extraction
+- **Source Adapters** — Pluggable data collection adapters: Reddit (subreddit + search), Google Autocomplete (pain-related prefixes), Twitter (API v2 search), Review Sites (G2/Capterra scraping), Regulatory RSS feeds
+
+### Added — FinServ Intelligence Platform
+- **Team Management** — Multi-tenant team system with role-based access (admin/analyst/viewer), invite/remove members, plan-based seat limits (Analyst/Team/Business/Enterprise tiers)
+- **Sector Taxonomy** — 6 financial sectors (Fund Services, Banking, Audit & Accounting, Wealth Management, Fiduciary, Accounting & Tax) with sub-categories and per-sector pain aggregation
+- **Regulatory Radar** — Ingest regulations from RSS feeds (CSSF, FCA, SEC, ESMA, EBA), track status (proposed/active/enforced/superseded), impact maps across sectors, severity scoring
+- **Vendor Pain Map** — Track financial services vendors, monitor vendor-specific pain signals, rank pains by intensity, view sector-filtered vendor landscapes
+- **Practice Intelligence** — Three-tab intelligence dashboard: Practice Pains (operational/technology/talent/regulatory/client categories), Service Opportunities (demand indicators + opportunity scoring), Talent Signals (hiring/retention/skills gap/compensation trends)
+- **Fund Operations Intelligence** — Operational pain index across 6 fund ops areas (NAV Calculation, Transfer Agency, Reporting, KYC/AML, Investor Communications, Reconciliation) with intensity bars and trend indicators
+- **Provider Comparison** — Side-by-side comparison of 2-5 fund service providers showing pain counts, average intensity, top pains, and operational area breakdowns
+- **API Key Management** — Generate, list, and revoke API keys (`sq_` prefix, SHA-256 hashed). Plan-based rate limits: Team 1K/day, Business 10K/day, Enterprise 100K/day. Full audit logging
+- **Report Generation** — CSV/JSON export for vendor pains, regulations, and sector overviews. Business/Enterprise plan only. Team branding in JSON output
+
+### Added — Core Engine
+- **Scan Engine** — Orchestrates multi-source pain discovery with configurable adapters, deduplication, and batch database persistence
+- **Pain Analysis Pipeline** — Automated AI analysis of raw scan results producing structured pain intelligence
+- **Solution Idea Generation** — AI-generated solution ideas from detected pain points with feasibility and market size estimates
+- **Contributor System** — Track and reward community contributors with reputation scoring, auto-approve thresholds, and admin contributor management
+
+### Database
+- New tables: `teams`, `teamMembers`, `trackedVendors`, `regulations`, `vendorPains`, `alertConfigs`, `apiKeys`, `apiKeyAuditLog`, `painPoints`, `scans`, `solutionIdeas`, `users`, `userTokens`
+- Migration scripts: `migrate-finserv-phase1.sql`, inline Drizzle schema definitions with IF NOT EXISTS pattern
+
+### API Endpoints (new — User Auth)
+- `POST /api/v1/auth/signup` — User registration with plan selection
+- `POST /api/v1/auth/user-login` — User login (access + refresh tokens)
+- `POST /api/v1/auth/user-logout` — Revoke refresh token
+- `POST /api/v1/auth/refresh` — Rotate access token
+
+### API Endpoints (new — PainGaps Retail)
+- `GET/POST /api/v1/scans` — List/create pain scans
+- `GET /api/v1/scans/:id` — Scan detail with pain points
+- `POST /api/v1/scans/:id/run` — Execute scan with adapters
+- `GET /api/v1/pain-points` — List pain points (filtered)
+- `GET /api/v1/pain-points/:id` — Pain point detail
+- `POST /api/v1/pain-points/:id/analyze` — AI analysis
+- `GET /api/v1/universe/search` — Pro-only cross-scan search
+
+### API Endpoints (new — FinServ Intelligence)
+- `GET /api/v1/finserv/sectors` — List sector taxonomy
+- `GET /api/v1/finserv/sectors/:sectorId/pains` — Sector pain aggregation
+- `GET/POST /api/v1/finserv/regulations` — List/add regulations
+- `GET /api/v1/finserv/regulations/:regId` — Regulation detail
+- `GET/POST /api/v1/finserv/vendors` — List/add tracked vendors
+- `GET/DELETE /api/v1/finserv/vendors/:vendorId` — Vendor detail/remove
+- `GET /api/v1/finserv/vendors/compare` — Multi-vendor comparison
+- `GET/POST/DELETE /api/v1/finserv/alerts` — Alert configuration
+- `GET/POST/PUT/DELETE /api/v1/finserv/teams` — Team CRUD
+- `GET/POST/DELETE /api/v1/finserv/teams/:teamId/members` — Member management
+- `GET /api/v1/finserv/practice/dashboard` — Practice pains
+- `GET /api/v1/finserv/practice/opportunities` — Service opportunities
+- `GET /api/v1/finserv/practice/talent` — Talent signals
+- `GET /api/v1/finserv/fund-ops/index` — Fund ops pain index
+- `GET /api/v1/finserv/fund-ops/providers/compare` — Provider comparison
+- `GET/POST/DELETE /api/v1/finserv/api-keys` — API key management
+- `POST /api/v1/finserv/reports/generate` — Report generation
+
+### API Endpoints (new — Billing)
+- `POST /api/v1/billing/checkout` — Create Stripe checkout session
+- `POST /api/v1/billing/portal` — Create Stripe billing portal session
+- `POST /api/v1/billing/webhook` — Stripe webhook handler
+
+### Changed
+- OpenAI client initialization changed to lazy-init pattern to prevent build-time failures when env vars aren't set
+- Plan system extended with FinServ tiers (Analyst/Team/Business/Enterprise) alongside retail tiers (Free/Starter/Pro)
+
 ## [3.0.0] - 2026-03-01
 
 ### Added

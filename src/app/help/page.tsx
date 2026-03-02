@@ -3,7 +3,7 @@ import { Panel } from "@/components/layout/panel";
 
 export const metadata = {
   title: "Help & User Guide",
-  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, use the Ask widget, suggest corrections, and report issues.",
+  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, use the Ask widget, suggest corrections, report issues, run PainGaps scans, and explore FinServ intelligence.",
   alternates: { canonical: "/help" },
 };
 
@@ -99,6 +99,9 @@ export default function HelpPage() {
                 { name: "Showcase", href: "/showcase", desc: "Vibe Coding Showcase. Community-submitted projects built with AI tools. Auto-fill from GitHub, submit without a live URL for libraries/CLIs, and get quality-scored." },
                 { name: "Best For", href: "/best-for", desc: "Find the right AI tool for your use case — rapid prototyping, enterprise, learning, open-source, and more." },
                 { name: "Stack Builder", href: "/stack-builder", desc: "Interactive wizard to compose a custom tool stack, assign roles, and analyze strengths and gaps." },
+                { name: "Pain Scans", href: "/scans", desc: "PainGaps Retail Intelligence. Run AI-powered scans on products to detect user pain points from Reddit, review sites, Google Autocomplete, and Twitter." },
+                { name: "Intelligence", href: "/intelligence", desc: "FinServ Intelligence Platform. Team-based vendor pain maps, regulatory radar, practice intelligence, fund operations analysis, and sector taxonomy." },
+                { name: "Pain Universe", href: "/universe", desc: "Pro-only cross-scan search across all detected pain points with keyword, severity, trend, source, and date range filters." },
                 { name: "Methodology", href: "/methodology", desc: "Detailed explanation of our evaluation process, scoring criteria, and update cadence." },
               ].map((page) => (
                 <Link
@@ -150,6 +153,42 @@ export default function HelpPage() {
                 <p style={{ fontSize: "11px" }}>Report bugs (what happened vs expected, with optional screenshot) or data quality issues (specify the field, current value, and corrected value with evidence). Rate limited to 10 reports per hour.</p>
               </div>
               <p style={{ fontSize: "11px" }}>You can also click <strong style={{ color: "var(--text-primary)" }}>&quot;Suggest a correction&quot;</strong> on any tool detail page to open the widget pre-filled with that tool&apos;s context.</p>
+            </div>
+          </Panel>
+
+          <Panel title="PainGaps Retail">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>PainGaps scans products and tools to detect real user pain points using AI-powered analysis across multiple data sources.</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Running Scans</div>
+                <p style={{ fontSize: "11px" }}>Create a scan at <Link href="/scans" style={{ color: "var(--accent-primary)" }}>/scans</Link>, specify a product name, and run it. The engine collects pain signals from Reddit, Google Autocomplete, Twitter, and review sites, then uses AI to analyze intensity, frequency, and trends.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Plans & Limits</div>
+                <p style={{ fontSize: "11px" }}>Free: 3 scans/month, 10 pain points. Starter: 20 scans/month, 100 pain points. Pro: unlimited scans, universe search, competitive gap extraction.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Pain Universe</div>
+                <p style={{ fontSize: "11px" }}>Pro users can search across all scans at <Link href="/universe" style={{ color: "var(--accent-primary)" }}>/universe</Link> to find patterns, filter by severity/trend/source, and extract competitive gaps.</p>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="FinServ Intelligence">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>Team-based intelligence platform for financial services professionals. Navigate to <Link href="/intelligence" style={{ color: "var(--accent-primary)" }}>/intelligence</Link> to access all modules.</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Teams & Sectors</div>
+                <p style={{ fontSize: "11px" }}>Create a team, invite members (admin/analyst/viewer roles), and track vendors across 6 financial sectors. Plan tiers: Analyst, Team, Business, Enterprise.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Intelligence Modules</div>
+                <p style={{ fontSize: "11px" }}>Regulatory Radar (track regulations from CSSF, FCA, SEC, ESMA, EBA), Vendor Pain Map (monitor vendor-specific pain signals), Practice Intelligence (pains, opportunities, talent), Fund Ops (operational pain index across NAV, TA, Reporting, KYC, Comms, Recon).</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>API Keys & Reports</div>
+                <p style={{ fontSize: "11px" }}>Team/Business/Enterprise plans can generate API keys for programmatic access. Business/Enterprise can export CSV/JSON reports for vendor pains, regulations, and sector overviews.</p>
+              </div>
             </div>
           </Panel>
         </div>

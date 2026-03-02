@@ -11,11 +11,15 @@ interface ScoreBarProps {
   showValue?: boolean;
   tooltip?: ReactNode;
   evidence?: string | null;
+  thresholds?: { excellent: number; average: number }; // Custom color thresholds
+  barColor?: string; // Override auto color
 }
 
-export function ScoreBar({ score, maxScore = 10, label, showValue = true, tooltip, evidence }: ScoreBarProps) {
+export function ScoreBar({ score, maxScore = 10, label, showValue = true, tooltip, evidence, thresholds, barColor }: ScoreBarProps) {
   const percentage = (score / maxScore) * 100;
-  const color = score >= 8 ? "var(--score-high)" : score >= 5 ? "var(--score-mid)" : "var(--score-low)";
+  const excellent = thresholds?.excellent ?? 8;
+  const average = thresholds?.average ?? 5;
+  const color = barColor ?? (score >= excellent ? "var(--score-high)" : score >= average ? "var(--score-mid)" : "var(--score-low)");
 
   return (
     <div role="meter" aria-valuenow={score} aria-valuemin={0} aria-valuemax={maxScore} aria-label={label ? `${label}: ${score.toFixed(1)} out of ${maxScore}` : `Score: ${score.toFixed(1)} out of ${maxScore}`}>

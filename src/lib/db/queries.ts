@@ -1,5 +1,6 @@
 import { db } from "./index";
-import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks, suggestions, reports, changeJobs, toolChangelog, askQueries, appSettings, registeredSites } from "./schema";
+import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks, suggestions, reports, changeJobs, toolChangelog, askQueries, appSettings, registeredSites, suggestionVotes, contributorStats, notificationLog } from "./schema";
+import crypto from "crypto";
 import { eq, and, sql, desc, asc, ilike, count, gte, lte } from "drizzle-orm";
 
 export async function getPublishedTools(opts: {
@@ -900,6 +901,7 @@ export async function listSuggestions(opts: {
     : sortField === "toolName" ? suggestions.toolName
     : sortField === "status" ? suggestions.status
     : sortField === "supportCount" ? suggestions.supportCount
+    : sortField === "netScore" ? suggestions.netScore
     : suggestions.createdAt;
 
   const suggestionList = await db.select().from(suggestions).where(where)
@@ -1516,4 +1518,221 @@ export async function deleteRegisteredSite(id: string) {
     .where(eq(registeredSites.id, id))
     .returning();
   return deleted;
+}
+
+// ============================================
+// Phase 4: Suggestion Voting
+// ============================================
+
+export async function castSuggestionVote(suggestionId: string, vote: "up" | "down", ipHash: string) {
+  // Check if already voted
+  const [existing] = await db.select().from(suggestionVotes)
+    .where(and(eq(suggestionVotes.suggestionId, suggestionId), eq(suggestionVotes.ipHash, ipHash)));
+
+  if (existing) {
+    if (existing.vote === vote) {
+      return { alreadyVoted: true, vote: existing.vote };
+    }
+    // Change vote direction
+    await db.update(suggestionVotes)
+      .set({ vote })
+      .where(eq(suggestionVotes.id, existing.id));
+
+    // Update cached counts: flip from old to new
+    const delta = vote === "up" ? 1 : -1;
+    await db.update(suggestions)
+      .set({
+        upvotes: sql`${suggestions.upvotes} + ${delta}`,
+        downvotes: sql`${suggestions.downvotes} - ${delta}`,
+        netScore: sql`${suggestions.netScore} + ${2 * delta}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(suggestions.id, suggestionId));
+
+    const [updated] = await db.select({ netScore: suggestions.netScore }).from(suggestions).where(eq(suggestions.id, suggestionId));
+    return { alreadyVoted: false, changed: true, netScore: updated?.netScore ?? 0 };
+  }
+
+  // New vote
+  await db.insert(suggestionVotes).values({ suggestionId, vote, ipHash });
+
+  if (vote === "up") {
+    await db.update(suggestions)
+      .set({
+        upvotes: sql`${suggestions.upvotes} + 1`,
+        netScore: sql`${suggestions.netScore} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(suggestions.id, suggestionId));
+  } else {
+    await db.update(suggestions)
+      .set({
+        downvotes: sql`${suggestions.downvotes} + 1`,
+        netScore: sql`${suggestions.netScore} - 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(suggestions.id, suggestionId));
+  }
+
+  const [updated] = await db.select({ netScore: suggestions.netScore }).from(suggestions).where(eq(suggestions.id, suggestionId));
+  return { alreadyVoted: false, changed: false, netScore: updated?.netScore ?? 0 };
+}
+
+export async function getSuggestionVoteCounts(suggestionId: string) {
+  const [suggestion] = await db.select({
+    upvotes: suggestions.upvotes,
+    downvotes: suggestions.downvotes,
+    netScore: suggestions.netScore,
+  }).from(suggestions).where(eq(suggestions.id, suggestionId));
+  return suggestion || { upvotes: 0, downvotes: 0, netScore: 0 };
+}
+
+export async function getUserVoteOnSuggestion(suggestionId: string, ipHash: string) {
+  const [vote] = await db.select({ vote: suggestionVotes.vote })
+    .from(suggestionVotes)
+    .where(and(eq(suggestionVotes.suggestionId, suggestionId), eq(suggestionVotes.ipHash, ipHash)));
+  return vote?.vote || null;
+}
+
+// ============================================
+// Phase 4: Contributor Reputation
+// ============================================
+
+function hashEmail(email: string): string {
+  return crypto.createHash("sha256").update(email.toLowerCase().trim()).digest("hex");
+}
+
+function emailPreview(email: string): string {
+  const parts = email.split("@");
+  if (parts.length !== 2) return "***";
+  const local = parts[0];
+  const domain = parts[1];
+  return local.substring(0, 3) + "***@" + domain;
+}
+
+export async function trackContributorSubmission(email: string) {
+  const hash = hashEmail(email);
+  const preview = emailPreview(email);
+  const now = new Date();
+
+  const [existing] = await db.select().from(contributorStats).where(eq(contributorStats.emailHash, hash));
+
+  if (existing) {
+    await db.update(contributorStats)
+      .set({
+        totalSubmissions: existing.totalSubmissions + 1,
+        lastSubmission: now,
+      })
+      .where(eq(contributorStats.emailHash, hash));
+    return { ...existing, totalSubmissions: existing.totalSubmissions + 1, lastSubmission: now };
+  }
+
+  const [inserted] = await db.insert(contributorStats).values({
+    emailHash: hash,
+    emailPreview: preview,
+    totalSubmissions: 1,
+    firstSubmission: now,
+    lastSubmission: now,
+  }).returning();
+  return inserted;
+}
+
+export async function updateContributorOnStatusChange(email: string, newStatus: string) {
+  if (newStatus !== "approved" && newStatus !== "rejected") return null;
+
+  const hash = hashEmail(email);
+  const [existing] = await db.select().from(contributorStats).where(eq(contributorStats.emailHash, hash));
+  if (!existing) return null;
+
+  const approved = existing.approvedCount + (newStatus === "approved" ? 1 : 0);
+  const rejected = existing.rejectedCount + (newStatus === "rejected" ? 1 : 0);
+  const total = existing.totalSubmissions;
+  const reputationScore = total > 0 ? Math.round((approved / total) * 100) : 0;
+
+  // Check auto-approve eligibility
+  const autoApproveSetting = await getAppSetting("auto_approve_threshold");
+  const threshold = typeof autoApproveSetting === "number" ? autoApproveSetting : 90;
+  const minSubmissionsSetting = await getAppSetting("auto_approve_min_submissions");
+  const minSubmissions = typeof minSubmissionsSetting === "number" ? minSubmissionsSetting : 10;
+  const autoApproveEligible = reputationScore >= threshold && total >= minSubmissions;
+
+  const [updated] = await db.update(contributorStats)
+    .set({
+      approvedCount: approved,
+      rejectedCount: rejected,
+      reputationScore,
+      autoApproveEligible,
+    })
+    .where(eq(contributorStats.emailHash, hash))
+    .returning();
+
+  return updated;
+}
+
+export async function getContributorByEmail(email: string) {
+  const hash = hashEmail(email);
+  const [stats] = await db.select().from(contributorStats).where(eq(contributorStats.emailHash, hash));
+  return stats || null;
+}
+
+export async function getContributorByHash(hash: string) {
+  const [stats] = await db.select().from(contributorStats).where(eq(contributorStats.emailHash, hash));
+  return stats || null;
+}
+
+export async function listContributors(opts: { page: number; pageSize: number; sort?: string }) {
+  const sortDesc = (opts.sort || "-reputation_score").startsWith("-");
+  const sortField = (opts.sort || "-reputation_score").replace(/^-/, "");
+
+  const sortColumn = sortField === "total_submissions" ? contributorStats.totalSubmissions
+    : sortField === "approved_count" ? contributorStats.approvedCount
+    : sortField === "last_submission" ? contributorStats.lastSubmission
+    : contributorStats.reputationScore;
+
+  const [totalResult] = await db.select({ count: count() }).from(contributorStats);
+  const data = await db.select().from(contributorStats)
+    .orderBy(sortDesc ? desc(sortColumn) : asc(sortColumn))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { data, total: totalResult.count };
+}
+
+// ============================================
+// Phase 4: Notification Log
+// ============================================
+
+export async function logNotification(data: {
+  suggestionId?: string;
+  recipientEmail: string;
+  type: string;
+  emailSubject: string;
+}) {
+  const [inserted] = await db.insert(notificationLog).values({
+    suggestionId: data.suggestionId,
+    recipientEmail: data.recipientEmail,
+    type: data.type,
+    emailSubject: data.emailSubject,
+  }).returning();
+  return inserted;
+}
+
+export async function getNotificationHistory(opts: { page: number; pageSize: number }) {
+  const [totalResult] = await db.select({ count: count() }).from(notificationLog);
+  const data = await db.select().from(notificationLog)
+    .orderBy(desc(notificationLog.sentAt))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { data, total: totalResult.count };
+}
+
+// ============================================
+// Phase 4: Public Changelog
+// ============================================
+
+export async function getToolChangelogCount(toolSlug: string): Promise<number> {
+  const [result] = await db.select({ count: count() }).from(toolChangelog)
+    .where(eq(toolChangelog.toolSlug, toolSlug));
+  return result.count;
 }

@@ -1,5 +1,6 @@
-import { pgTable, uuid, varchar, text, decimal, integer, timestamp, jsonb, unique, boolean, check, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, decimal, integer, timestamp, jsonb, unique, boolean, check, index, date } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import type { DomainConfig } from "@/lib/engine/types";
 
 export const tools = pgTable("tools", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -369,6 +370,9 @@ export const suggestions = pgTable("suggestions", {
   supporterEmails: jsonb("supporter_emails").$type<string[]>().notNull().default([]),
   supporterEvidence: jsonb("supporter_evidence").$type<Array<{ email?: string; evidence?: string; addedAt: string }>>().notNull().default([]),
   ipHash: varchar("ip_hash", { length: 64 }),
+  upvotes: integer("upvotes").notNull().default(0),
+  downvotes: integer("downvotes").notNull().default(0),
+  netScore: integer("net_score").notNull().default(0),
   site: varchar("site", { length: 50 }).notNull().default("stackquadrant"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -473,6 +477,46 @@ export const appSettings = pgTable("app_settings", {
 // Phase 3: Multi-App Gateway
 // ============================================
 
+// ============================================
+// Phase 4: Premium & Polish
+// ============================================
+
+export const suggestionVotes = pgTable("suggestion_votes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  suggestionId: uuid("suggestion_id").notNull().references(() => suggestions.id, { onDelete: "cascade" }),
+  vote: varchar("vote", { length: 4 }).notNull(), // 'up' or 'down'
+  ipHash: varchar("ip_hash", { length: 64 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("suggestion_vote_unique").on(table.suggestionId, table.ipHash),
+  index("suggestion_votes_suggestion_idx").on(table.suggestionId),
+  check("suggestion_votes_vote_check", sql`${table.vote} IN ('up', 'down')`),
+]);
+
+export const contributorStats = pgTable("contributor_stats", {
+  emailHash: varchar("email_hash", { length: 64 }).primaryKey(),
+  emailPreview: varchar("email_preview", { length: 20 }),
+  totalSubmissions: integer("total_submissions").notNull().default(0),
+  approvedCount: integer("approved_count").notNull().default(0),
+  rejectedCount: integer("rejected_count").notNull().default(0),
+  reputationScore: integer("reputation_score").notNull().default(0),
+  firstSubmission: timestamp("first_submission", { withTimezone: true }),
+  lastSubmission: timestamp("last_submission", { withTimezone: true }),
+  autoApproveEligible: boolean("auto_approve_eligible").notNull().default(false),
+});
+
+export const notificationLog = pgTable("notification_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  suggestionId: uuid("suggestion_id").references(() => suggestions.id, { onDelete: "set null" }),
+  recipientEmail: varchar("recipient_email", { length: 255 }).notNull(),
+  type: varchar("type", { length: 30 }).notNull(), // 'approved', 'rejected', 'needs_info', 'auto_approved'
+  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  emailSubject: text("email_subject"),
+}, (table) => [
+  index("notification_log_suggestion_idx").on(table.suggestionId),
+  index("notification_log_sent_at_idx").on(table.sentAt),
+]);
+
 export const registeredSites = pgTable("registered_sites", {
   id: varchar("id", { length: 50 }).primaryKey(), // e.g., 'stackquadrant', 'frontaliercalc'
   name: varchar("name", { length: 100 }).notNull(),
@@ -485,3 +529,377 @@ export const registeredSites = pgTable("registered_sites", {
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ============================================
+// Core Quadrant Engine — Multi-Domain Platform
+// ============================================
+
+export const domains = pgTable("domains", {
+  id: varchar("id", { length: 60 }).primaryKey(),              // e.g., "developer-tools"
+  name: varchar("name", { length: 120 }).notNull(),
+  slug: varchar("slug", { length: 60 }).notNull().unique(),    // URL prefix
+  description: text("description").notNull(),
+  config: jsonb("config").notNull().$type<DomainConfig>(),     // Full domain configuration
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const scoringDimensions = pgTable("scoring_dimensions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  domainId: varchar("domain_id", { length: 60 }).notNull().references(() => domains.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 120 }).notNull(),
+  description: text("description").notNull(),
+  weight: decimal("weight", { precision: 3, scale: 2 }).notNull(),
+  scaleMin: integer("scale_min").notNull().default(0),
+  scaleMax: integer("scale_max").notNull().default(10),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("scoring_dimensions_domain_idx").on(table.domainId),
+  check("scoring_dimensions_weight_range", sql`${table.weight} >= 0 AND ${table.weight} <= 1`),
+]);
+
+export const scoredEntities = pgTable("scored_entities", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  domainId: varchar("domain_id", { length: 60 }).notNull().references(() => domains.id, { onDelete: "cascade" }),
+  entityType: varchar("entity_type", { length: 60 }).notNull(),    // e.g., "tool", "pain_point", "vendor"
+  name: varchar("name", { length: 240 }).notNull(),
+  slug: varchar("slug", { length: 240 }).notNull(),
+  compositeScore: decimal("composite_score", { precision: 5, scale: 2 }),
+  quadrantX: decimal("quadrant_x", { precision: 5, scale: 2 }),
+  quadrantY: decimal("quadrant_y", { precision: 5, scale: 2 }),
+  metadata: jsonb("metadata").notNull().$type<Record<string, unknown>>().default({}),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_entities_domain_type").on(table.domainId, table.entityType),
+  index("idx_entities_composite_score").on(table.compositeScore),
+  index("idx_entities_domain_slug").on(table.domainId, table.slug),
+  unique("scored_entities_domain_slug_unique").on(table.domainId, table.slug),
+]);
+
+export const dimensionScores = pgTable("dimension_scores", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  entityId: uuid("entity_id").notNull().references(() => scoredEntities.id, { onDelete: "cascade" }),
+  dimensionId: uuid("dimension_id").notNull().references(() => scoringDimensions.id, { onDelete: "cascade" }),
+  score: decimal("score", { precision: 5, scale: 2 }).notNull(),
+  scoredAt: timestamp("scored_at", { withTimezone: true }).notNull().defaultNow(),
+  source: varchar("source", { length: 60 }).notNull(),            // "manual", "computed", "adapter"
+}, (table) => [
+  index("idx_dim_scores_entity").on(table.entityId),
+  unique("dim_scores_entity_dimension_unique").on(table.entityId, table.dimensionId),
+]);
+
+export const engineScoreHistory = pgTable("engine_score_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  entityId: uuid("entity_id").notNull().references(() => scoredEntities.id, { onDelete: "cascade" }),
+  compositeScore: decimal("composite_score", { precision: 5, scale: 2 }).notNull(),
+  dimensionScores: jsonb("dimension_scores").notNull().$type<Record<string, number>>(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_history_entity_date").on(table.entityId, table.recordedAt),
+]);
+
+export const rawSignals = pgTable("raw_signals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  domainId: varchar("domain_id", { length: 60 }).notNull().references(() => domains.id, { onDelete: "cascade" }),
+  sourceType: varchar("source_type", { length: 60 }).notNull(),    // "reddit", "github", "appstore", etc.
+  sourceUrl: text("source_url").notNull(),
+  content: text("content").notNull(),
+  author: varchar("author", { length: 240 }),
+  signalTimestamp: timestamp("signal_timestamp", { withTimezone: true }).notNull(),
+  metadata: jsonb("metadata").notNull().$type<Record<string, unknown>>().default({}),
+  processed: boolean("processed").notNull().default(false),
+  ingestedAt: timestamp("ingested_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_signals_domain_unprocessed").on(table.domainId, table.processed),
+  index("idx_signals_source_type").on(table.sourceType),
+  index("idx_signals_ingested_at").on(table.ingestedAt),
+]);
+
+export const sourceAdapterRuns = pgTable("source_adapter_runs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  adapterId: varchar("adapter_id", { length: 60 }).notNull(),
+  domainId: varchar("domain_id", { length: 60 }).notNull().references(() => domains.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 20 }).notNull(),             // "queued", "running", "completed", "failed"
+  signalsFetched: integer("signals_fetched").notNull().default(0),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_adapter_runs_adapter_domain").on(table.adapterId, table.domainId),
+  index("idx_adapter_runs_status").on(table.status),
+  index("idx_adapter_runs_created_at").on(table.createdAt),
+]);
+
+// ============================================
+// PainGaps Retail — User Auth & Billing
+// ============================================
+
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  fullName: varchar("full_name", { length: 120 }).notNull(),
+  role: varchar("role", { length: 20 }).notNull().default("member"),   // "admin", "member"
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("users_email_idx").on(table.email),
+]);
+
+export const refreshTokens = pgTable("refresh_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: varchar("token_hash", { length: 128 }).notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revoked: boolean("revoked").notNull().default(false),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("refresh_tokens_user_idx").on(table.userId),
+  index("refresh_tokens_hash_idx").on(table.tokenHash),
+]);
+
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  planCode: varchar("plan_code", { length: 30 }).notNull(),           // "free", "starter", "pro"
+  status: varchar("status", { length: 30 }).notNull(),                // "trialing", "active", "past_due", "canceled"
+  stripeCustomerId: varchar("stripe_customer_id", { length: 60 }).unique(),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 60 }).unique(),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  version: integer("version").notNull().default(1),                    // Optimistic locking
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("subscriptions_user_idx").on(table.userId),
+  index("subscriptions_status_idx").on(table.status),
+  check("subscriptions_plan_check", sql`${table.planCode} IN ('free', 'starter', 'pro')`),
+]);
+
+// ============================================
+// PainGaps Retail — Scans & Pain Points
+// ============================================
+
+export const scans = pgTable("scans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  targetKeywords: jsonb("target_keywords").notNull().$type<string[]>(),
+  targetSubreddits: jsonb("target_subreddits").$type<string[]>(),
+  targetAppCategories: jsonb("target_app_categories").$type<string[]>(),
+  enabledSources: jsonb("enabled_sources").notNull().$type<string[]>(),
+  timeframeDays: integer("timeframe_days").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("queued"),  // "queued", "running", "completed", "failed"
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  errorCode: varchar("error_code", { length: 60 }),
+  idempotencyKey: varchar("idempotency_key", { length: 64 }).unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("scans_user_idx").on(table.userId),
+  index("scans_status_idx").on(table.status),
+  index("scans_created_at_idx").on(table.createdAt),
+  check("scans_timeframe_check", sql`${table.timeframeDays} IN (7, 30, 90)`),
+]);
+
+export const painPoints = pgTable("pain_points", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scanId: uuid("scan_id").notNull().references(() => scans.id, { onDelete: "cascade" }),
+  scoredEntityId: uuid("scored_entity_id").references(() => scoredEntities.id).unique(),
+  title: varchar("title", { length: 240 }).notNull(),
+  summary: text("summary").notNull(),
+  severityScore: integer("severity_score").notNull(),
+  frequencyScore: integer("frequency_score").notNull(),
+  intensityScore: integer("intensity_score").notNull(),
+  marketSizeScore: integer("market_size_score").notNull(),
+  competitionScore: integer("competition_score").notNull(),
+  wtpScore: integer("wtp_score").notNull(),                           // Willingness to pay
+  trendDirection: varchar("trend_direction", { length: 20 }).notNull(), // "growing", "stable", "declining"
+  sourceCount: integer("source_count").notNull().default(1),
+  audienceSummary: text("audience_summary"),
+  competitorNames: jsonb("competitor_names").$type<string[]>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("pain_points_scan_idx").on(table.scanId),
+  index("pain_points_severity_idx").on(table.severityScore),
+  check("pain_points_severity_range", sql`${table.severityScore} >= 0 AND ${table.severityScore} <= 100`),
+  check("pain_points_frequency_range", sql`${table.frequencyScore} >= 0 AND ${table.frequencyScore} <= 100`),
+  check("pain_points_intensity_range", sql`${table.intensityScore} >= 0 AND ${table.intensityScore} <= 100`),
+]);
+
+export const evidenceItems = pgTable("evidence_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  painPointId: uuid("pain_point_id").notNull().references(() => painPoints.id, { onDelete: "cascade" }),
+  sourceType: varchar("source_type", { length: 60 }).notNull(),       // "reddit", "appstore", "twitter", etc.
+  quoteText: text("quote_text").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  sourceName: varchar("source_name", { length: 120 }).notNull(),
+  author: varchar("author", { length: 240 }),
+  originalTimestamp: timestamp("original_timestamp", { withTimezone: true }).notNull(),
+}, (table) => [
+  index("evidence_items_pain_point_idx").on(table.painPointId),
+  index("evidence_items_source_type_idx").on(table.sourceType),
+]);
+
+export const solutionIdeas = pgTable("solution_ideas", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  painPointId: uuid("pain_point_id").notNull().references(() => painPoints.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 240 }).notNull(),
+  description: text("description").notNull(),
+  confidenceScore: integer("confidence_score").notNull(),
+  targetAudience: text("target_audience"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("solution_ideas_pain_point_idx").on(table.painPointId),
+  check("solution_ideas_confidence_range", sql`${table.confidenceScore} >= 0 AND ${table.confidenceScore} <= 100`),
+]);
+
+// ============================================
+// PainGaps Financial Services — Enterprise Vertical
+// ============================================
+
+export const teams = pgTable("teams", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 120 }).notNull(),
+  planCode: varchar("plan_code", { length: 30 }).notNull(),                // "analyst", "team", "business", "enterprise"
+  stripeCustomerId: varchar("stripe_customer_id", { length: 60 }).unique(),
+  settings: jsonb("settings").notNull().$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("teams_plan_code_idx").on(table.planCode),
+  check("teams_plan_check", sql`${table.planCode} IN ('analyst', 'team', 'business', 'enterprise')`),
+]);
+
+export const teamMembers = pgTable("team_members", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).notNull(),                         // "team_admin", "team_member"
+  sectorAccess: jsonb("sector_access").notNull().$type<string[]>().default(["all"]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("team_members_team_user_unique").on(table.teamId, table.userId),
+  index("team_members_team_idx").on(table.teamId),
+  index("team_members_user_idx").on(table.userId),
+  check("team_members_role_check", sql`${table.role} IN ('team_admin', 'team_member')`),
+]);
+
+export const trackedVendors = pgTable("tracked_vendors", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  vendorName: varchar("vendor_name", { length: 240 }).notNull(),
+  vendorAliases: jsonb("vendor_aliases").notNull().$type<string[]>().default([]),
+  sector: varchar("sector", { length: 60 }).notNull(),                     // fund, banking, audit, wealth, fiduciary, accounting
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("tracked_vendors_team_idx").on(table.teamId),
+  index("tracked_vendors_sector_idx").on(table.sector),
+  check("tracked_vendors_sector_check", sql`${table.sector} IN ('fund', 'banking', 'audit', 'wealth', 'fiduciary', 'accounting', 'cross-sector')`),
+]);
+
+export const regulations = pgTable("regulations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 240 }).notNull(),
+  shortCode: varchar("short_code", { length: 30 }).notNull().unique(),
+  issuingBody: varchar("issuing_body", { length: 120 }).notNull(),         // CSSF, FCA, ESMA, etc.
+  jurisdictions: jsonb("jurisdictions").notNull().$type<string[]>(),
+  effectiveDate: date("effective_date"),
+  implementationDeadline: date("implementation_deadline"),
+  status: varchar("status", { length: 30 }).notNull(),                     // proposed, consultation, adopted, effective, superseded
+  summary: text("summary").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  impactMap: jsonb("impact_map").$type<Record<string, number>>(),          // Department impact scores
+  painScore: integer("pain_score"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("regulations_issuing_body_idx").on(table.issuingBody),
+  index("regulations_status_idx").on(table.status),
+  index("regulations_effective_date_idx").on(table.effectiveDate),
+  check("regulations_pain_range", sql`${table.painScore} IS NULL OR (${table.painScore} >= 0 AND ${table.painScore} <= 100)`),
+  check("regulations_status_check", sql`${table.status} IN ('proposed', 'consultation', 'adopted', 'effective', 'superseded')`),
+]);
+
+export const vendorPains = pgTable("vendor_pains", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  trackedVendorId: uuid("tracked_vendor_id").notNull().references(() => trackedVendors.id, { onDelete: "cascade" }),
+  scoredEntityId: uuid("scored_entity_id").references(() => scoredEntities.id),
+  title: varchar("title", { length: 240 }).notNull(),
+  summary: text("summary").notNull(),
+  intensityScore: integer("intensity_score").notNull(),
+  frequencyScore: integer("frequency_score").notNull(),
+  trendDirection: varchar("trend_direction", { length: 20 }).notNull(),    // growing, stable, declining
+  fixDetected: boolean("fix_detected").notNull().default(false),
+  fixDetectedAt: timestamp("fix_detected_at", { withTimezone: true }),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull(),
+  evidenceCount: integer("evidence_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("vendor_pains_vendor_idx").on(table.trackedVendorId),
+  index("vendor_pains_intensity_idx").on(table.intensityScore),
+  check("vendor_pains_intensity_range", sql`${table.intensityScore} >= 0 AND ${table.intensityScore} <= 100`),
+  check("vendor_pains_frequency_range", sql`${table.frequencyScore} >= 0 AND ${table.frequencyScore} <= 100`),
+  check("vendor_pains_trend_check", sql`${table.trendDirection} IN ('growing', 'stable', 'declining')`),
+]);
+
+export const alertConfigs = pgTable("alert_configs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  alertType: varchar("alert_type", { length: 60 }).notNull(),             // regulation_spike, vendor_pain, sector_trend, talent_alert
+  topicFilter: jsonb("topic_filter").notNull().$type<Record<string, unknown>>(),
+  threshold: integer("threshold").notNull(),
+  channel: varchar("channel", { length: 20 }).notNull(),                  // email, dashboard, both
+  isActive: boolean("is_active").notNull().default(true),
+  lastTriggeredAt: timestamp("last_triggered_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("alert_configs_team_idx").on(table.teamId),
+  index("alert_configs_user_idx").on(table.userId),
+  check("alert_configs_channel_check", sql`${table.channel} IN ('email', 'dashboard', 'both')`),
+]);
+
+// ============================================
+// FinServ Phase 3 — API Keys & Enterprise Features
+// ============================================
+
+export const apiKeys = pgTable("api_keys", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  teamId: uuid("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  createdBy: uuid("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 120 }).notNull(),
+  keyHash: varchar("key_hash", { length: 128 }).notNull().unique(),
+  keyPrefix: varchar("key_prefix", { length: 12 }).notNull(),             // First 8 chars for display
+  scopes: jsonb("scopes").notNull().$type<string[]>().default(["read"]),  // read, write, admin
+  rateLimitPerDay: integer("rate_limit_per_day").notNull().default(1000),
+  requestsToday: integer("requests_today").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  revoked: boolean("revoked").notNull().default(false),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("api_keys_team_idx").on(table.teamId),
+  index("api_keys_hash_idx").on(table.keyHash),
+]);
+
+export const apiKeyAuditLog = pgTable("api_key_audit_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  apiKeyId: uuid("api_key_id").notNull().references(() => apiKeys.id, { onDelete: "cascade" }),
+  action: varchar("action", { length: 30 }).notNull(),                    // created, used, revoked, rate_limited
+  ipAddress: varchar("ip_address", { length: 45 }),
+  endpoint: varchar("endpoint", { length: 200 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("api_key_audit_log_key_idx").on(table.apiKeyId),
+  index("api_key_audit_log_created_at_idx").on(table.createdAt),
+]);

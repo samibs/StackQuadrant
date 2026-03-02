@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/utils/api";
 import { requireAdmin } from "@/lib/utils/auth";
-import { getSuggestionById, getSimilarSuggestions } from "@/lib/db/queries";
+import { getSuggestionById, getSimilarSuggestions, getContributorByEmail } from "@/lib/db/queries";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin(request);
@@ -19,7 +19,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ? await getSimilarSuggestions(suggestion.toolSlug, suggestion.type)
       : [];
 
-    return apiSuccess({ suggestion, similarSuggestions });
+    const contributor = suggestion.submitterEmail
+      ? await getContributorByEmail(suggestion.submitterEmail)
+      : null;
+
+    return apiSuccess({ suggestion, similarSuggestions, contributor });
   } catch (error) {
     console.error("GET /api/v1/admin/suggestions/[id] error:", error);
     return apiError("INTERNAL_ERROR", "An unexpected error occurred", 500);

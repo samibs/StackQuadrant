@@ -56,7 +56,7 @@ interface OverallTrendEntry {
   changedAt: Date;
 }
 
-export function ToolDetailClient({ tool, scoreHistory, overallTrend }: { tool: ToolDetail; scoreHistory: ScoreHistoryEntry[]; overallTrend: OverallTrendEntry[] }) {
+export function ToolDetailClient({ tool, scoreHistory, overallTrend, changelogCount = 0 }: { tool: ToolDetail; scoreHistory: ScoreHistoryEntry[]; overallTrend: OverallTrendEntry[]; changelogCount?: number }) {
   const validScores = tool.scores.filter((s) => s.score !== null).map((s) => ({
     dimension: s.dimension,
     score: s.score!,
@@ -136,6 +136,11 @@ export function ToolDetailClient({ tool, scoreHistory, overallTrend }: { tool: T
               Compare &rarr;
             </Link>
             <SuggestCorrectionLink toolSlug={tool.slug} toolName={tool.name} />
+            {changelogCount > 0 && (
+              <Link href={`/tools/${tool.slug}/changelog`} style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>
+                Changelog ({changelogCount})
+              </Link>
+            )}
             {tool.updatedAt && (
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
                 Last evaluated: {new Date(tool.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

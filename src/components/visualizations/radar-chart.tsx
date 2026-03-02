@@ -3,13 +3,24 @@
 import { motion } from "framer-motion";
 import { Tooltip } from "@/components/ui/tooltip";
 
-interface RadarChartProps {
-  scores: Array<{ dimension: string; score: number; description?: string | null }>;
-  size?: number;
-  maxScore?: number;
+// RadarDimension can be used by any domain vertical
+export interface RadarDimension {
+  dimension: string;
+  score: number;
+  description?: string | null;
 }
 
-export function RadarChart({ scores, size = 240, maxScore = 10 }: RadarChartProps) {
+interface RadarChartProps {
+  scores: RadarDimension[];
+  size?: number;
+  maxScore?: number;
+  fillColor?: string;     // Custom fill color (defaults to accent-primary)
+  strokeColor?: string;   // Custom stroke color (defaults to accent-primary)
+}
+
+export function RadarChart({ scores, size = 240, maxScore = 10, fillColor, strokeColor }: RadarChartProps) {
+  const fill = fillColor ?? "var(--accent-primary)";
+  const stroke = strokeColor ?? "var(--accent-primary)";
   // Add padding so labels fit within bounds (no clipping by overflow:hidden parents)
   const padding = 30;
   const totalSize = size + padding * 2;
@@ -73,9 +84,9 @@ export function RadarChart({ scores, size = 240, maxScore = 10 }: RadarChartProp
         {/* Data polygon */}
         <motion.path
           d={pathData}
-          fill="var(--accent-primary)"
+          fill={fill}
           fillOpacity={0.15}
-          stroke="var(--accent-primary)"
+          stroke={stroke}
           strokeWidth={1.5}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -89,7 +100,7 @@ export function RadarChart({ scores, size = 240, maxScore = 10 }: RadarChartProp
             cx={p.x}
             cy={p.y}
             r={4}
-            fill="var(--accent-primary)"
+            fill={fill}
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: i * 0.05, duration: 0.3 }}

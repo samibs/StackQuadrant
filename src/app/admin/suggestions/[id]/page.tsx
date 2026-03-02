@@ -32,6 +32,16 @@ interface SimilarSuggestion {
   createdAt: string;
 }
 
+interface ContributorInfo {
+  emailHash: string;
+  emailPreview: string | null;
+  totalSubmissions: number;
+  approvedCount: number;
+  rejectedCount: number;
+  reputationScore: number;
+  autoApproveEligible: boolean;
+}
+
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   pending: { bg: "rgba(234,179,8,0.15)", color: "#eab308" },
   approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e" },
@@ -55,6 +65,7 @@ export default function AdminSuggestionDetailPage() {
 
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [similarSuggestions, setSimilarSuggestions] = useState<SimilarSuggestion[]>([]);
+  const [contributor, setContributor] = useState<ContributorInfo | null>(null);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -74,6 +85,7 @@ export default function AdminSuggestionDetailPage() {
       }
       setSuggestion(data.data.suggestion);
       setSimilarSuggestions(data.data.similarSuggestions || []);
+      setContributor(data.data.contributor || null);
     } catch {
       setError("Failed to load suggestion");
     }
@@ -258,6 +270,43 @@ export default function AdminSuggestionDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Contributor Reputation Badge */}
+      {contributor && (
+        <div
+          className="flex items-center gap-[var(--space-3)] px-[var(--space-4)] py-[var(--space-3)] mb-[var(--grid-gap)]"
+          style={{ background: "var(--bg-surface)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}
+        >
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+            Contributor:
+          </span>
+          <span style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "10px",
+            padding: "2px 8px",
+            borderRadius: "var(--radius-sm)",
+            fontWeight: 600,
+            background: contributor.reputationScore >= 80 && contributor.totalSubmissions >= 5
+              ? "rgba(34,197,94,0.15)" : contributor.reputationScore >= 50
+              ? "rgba(234,179,8,0.15)" : "rgba(107,114,128,0.15)",
+            color: contributor.reputationScore >= 80 && contributor.totalSubmissions >= 5
+              ? "#22c55e" : contributor.reputationScore >= 50
+              ? "#eab308" : "#6b7280",
+          }}>
+            {contributor.reputationScore >= 80 && contributor.totalSubmissions >= 5
+              ? "Trusted Contributor" : contributor.reputationScore >= 50
+              ? "Active Contributor" : "New Contributor"}
+          </span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-secondary)" }}>
+            {contributor.reputationScore}% approval ({contributor.approvedCount}/{contributor.totalSubmissions})
+          </span>
+          {contributor.autoApproveEligible && (
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", padding: "1px 6px", borderRadius: "var(--radius-sm)", background: "rgba(34,197,94,0.15)", color: "#22c55e", fontWeight: 600 }}>
+              AUTO-APPROVE ELIGIBLE
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Reason */}
       <div

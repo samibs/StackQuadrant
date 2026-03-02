@@ -63,6 +63,9 @@ export default function AdminAnalyticsPage() {
   const [threshold, setThreshold] = useState(3);
   const [thresholdInput, setThresholdInput] = useState("3");
   const [savingThreshold, setSavingThreshold] = useState(false);
+  const [autoApprove, setAutoApprove] = useState({ enabled: false, threshold: 90, minSubmissions: 10 });
+  const [autoApproveInput, setAutoApproveInput] = useState({ threshold: "90", minSubmissions: "10" });
+  const [savingAutoApprove, setSavingAutoApprove] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -78,17 +81,23 @@ export default function AdminAnalyticsPage() {
     setLoading(true);
     try {
       const siteParam = siteFilter ? `&site=${siteFilter}` : "";
-      const [sugRes, repRes, qRes, thRes] = await Promise.all([
+      const [sugRes, repRes, qRes, thRes, aaRes] = await Promise.all([
         authFetch(`/api/v1/admin/analytics/suggestions?period=${period}${siteParam}`),
         authFetch(`/api/v1/admin/analytics/reports?period=${period}${siteParam}`),
         authFetch(`/api/v1/admin/analytics/questions?period=${period}${siteParam}`),
         authFetch(`/api/v1/admin/settings/verification-threshold`),
+        authFetch(`/api/v1/admin/settings/auto-approve`),
       ]);
 
       if (sugRes.ok) { const d = await sugRes.json(); setSuggestionData(d.data); }
       if (repRes.ok) { const d = await repRes.json(); setReportData(d.data); }
       if (qRes.ok) { const d = await qRes.json(); setQuestionData(d.data); }
       if (thRes.ok) { const d = await thRes.json(); setThreshold(d.data.threshold); setThresholdInput(String(d.data.threshold)); }
+      if (aaRes.ok) {
+        const d = await aaRes.json();
+        setAutoApprove(d.data);
+        setAutoApproveInput({ threshold: String(d.data.threshold), minSubmissions: String(d.data.minSubmissions) });
+      }
     } catch (err) {
       console.error("Failed to fetch analytics:", err);
     }
@@ -110,6 +119,23 @@ export default function AdminAnalyticsPage() {
       if (res.ok) setThreshold(val);
     } catch { /* ignore */ }
     setSavingThreshold(false);
+  };
+
+  const handleAutoApproveSave = async (updates: Record<string, unknown>) => {
+    setSavingAutoApprove(true);
+    try {
+      const res = await authFetch("/api/v1/admin/settings/auto-approve", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setAutoApprove(d.data);
+        setAutoApproveInput({ threshold: String(d.data.threshold), minSubmissions: String(d.data.minSubmissions) });
+      }
+    } catch { /* ignore */ }
+    setSavingAutoApprove(false);
   };
 
   if (authLoading) return null;
@@ -297,6 +323,37 @@ export default function AdminAnalyticsPage() {
             )}
           </div>
 
+          {/* Correction Hotspots - tools with most suggestions */}
+          {suggestionData?.byType && suggestionData.byType.length > 0 && (
+            <div style={{ ...cardStyle, marginBottom: "var(--space-6)" }}>
+              <h3 style={cardTitleStyle}>Approval Rate</h3>
+              {(() => {
+                const approved = suggestionData.byStatus.find(s => s.status === "approved")?.count || 0;
+                const rejected = suggestionData.byStatus.find(s => s.status === "rejected")?.count || 0;
+                const total = approved + rejected;
+                const rate = total > 0 ? Math.round((approved / total) * 100) : 0;
+                return (
+                  <div className="flex items-center gap-[var(--space-4)]">
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Approved vs Rejected</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: rate >= 50 ? "#22c55e" : "#ef4444", fontFamily: "var(--font-mono)" }}>{rate}%</span>
+                      </div>
+                      <div style={{ height: 8, background: "var(--bg-input)", borderRadius: 4, overflow: "hidden", display: "flex" }}>
+                        <div style={{ height: 8, background: "#22c55e", width: `${rate}%`, transition: "width 0.3s" }} />
+                        <div style={{ height: 8, background: "#ef4444", flex: 1 }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                        <span style={{ fontSize: 10, color: "#22c55e" }}>{approved} approved</span>
+                        <span style={{ fontSize: 10, color: "#ef4444" }}>{rejected} rejected</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Settings */}
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Community Verification Settings</h3>
@@ -341,6 +398,71 @@ export default function AdminAnalyticsPage() {
               <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
                 Current: {threshold}
               </span>
+            </div>
+          </div>
+
+          {/* Auto-Approve Settings */}
+          <div style={{ ...cardStyle, marginTop: "var(--space-4)" }}>
+            <h3 style={cardTitleStyle}>Auto-Approve Settings</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Enabled:</label>
+                <button
+                  onClick={() => handleAutoApproveSave({ enabled: !autoApprove.enabled })}
+                  disabled={savingAutoApprove}
+                  style={{
+                    padding: "var(--space-1) var(--space-3)",
+                    background: autoApprove.enabled ? "rgba(34,197,94,0.15)" : "var(--bg-elevated)",
+                    color: autoApprove.enabled ? "#22c55e" : "var(--text-muted)",
+                    border: "1px solid " + (autoApprove.enabled ? "rgba(34,197,94,0.3)" : "var(--border-default)"),
+                    borderRadius: "var(--radius-sm)",
+                    cursor: savingAutoApprove ? "not-allowed" : "pointer",
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {autoApprove.enabled ? "ON" : "OFF"}
+                </button>
+                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                  Only for add_tool and update_metadata types
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Reputation threshold (%):</label>
+                <input
+                  type="number" min={50} max={100}
+                  value={autoApproveInput.threshold}
+                  onChange={(e) => setAutoApproveInput(prev => ({ ...prev, threshold: e.target.value }))}
+                  style={{ width: 60, padding: "var(--space-1) var(--space-2)", background: "var(--bg-input)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", textAlign: "center" }}
+                />
+                <label style={{ fontSize: 11, color: "var(--text-secondary)" }}>Min submissions:</label>
+                <input
+                  type="number" min={3} max={50}
+                  value={autoApproveInput.minSubmissions}
+                  onChange={(e) => setAutoApproveInput(prev => ({ ...prev, minSubmissions: e.target.value }))}
+                  style={{ width: 60, padding: "var(--space-1) var(--space-2)", background: "var(--bg-input)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", color: "var(--text-primary)", fontSize: 12, fontFamily: "var(--font-mono)", textAlign: "center" }}
+                />
+                <button
+                  onClick={() => handleAutoApproveSave({
+                    threshold: parseInt(autoApproveInput.threshold, 10),
+                    minSubmissions: parseInt(autoApproveInput.minSubmissions, 10),
+                  })}
+                  disabled={savingAutoApprove || (autoApproveInput.threshold === String(autoApprove.threshold) && autoApproveInput.minSubmissions === String(autoApprove.minSubmissions))}
+                  style={{
+                    padding: "var(--space-1) var(--space-3)",
+                    background: (autoApproveInput.threshold !== String(autoApprove.threshold) || autoApproveInput.minSubmissions !== String(autoApprove.minSubmissions)) ? "var(--accent-primary)" : "var(--bg-elevated)",
+                    color: (autoApproveInput.threshold !== String(autoApprove.threshold) || autoApproveInput.minSubmissions !== String(autoApprove.minSubmissions)) ? "#fff" : "var(--text-muted)",
+                    border: "none",
+                    borderRadius: "var(--radius-sm)",
+                    cursor: savingAutoApprove ? "not-allowed" : "pointer",
+                    fontSize: 11,
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {savingAutoApprove ? "Saving..." : "Save"}
+                </button>
+              </div>
             </div>
           </div>
         </>

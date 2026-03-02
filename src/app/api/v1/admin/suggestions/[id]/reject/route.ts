@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/utils/api";
 import { requireAdmin } from "@/lib/utils/auth";
-import { getSuggestionById, updateSuggestionStatus } from "@/lib/db/queries";
+import { getSuggestionById, updateSuggestionStatus, updateContributorOnStatusChange } from "@/lib/db/queries";
+import { sendSuggestionNotification } from "@/lib/utils/notifications";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAdmin(request);
@@ -33,6 +34,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       rejectionReason: body.reason.trim(),
       reviewedBy: admin.email,
     });
+
+    // Update contributor reputation + send notification
+    if (suggestion.submitterEmail) {
+      updateContributorOnStatusChange(suggestion.submitterEmail, "rejected").catch((err) =>
+        console.error("Contributor update failed:", err)
+      );
+      sendSuggestionNotification(suggestion, "rejected", body.reason.trim()).catch((err) =>
+        console.error("Notification failed:", err)
+      );
+    }
 
     return apiSuccess(updated);
   } catch (error) {

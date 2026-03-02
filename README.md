@@ -1,13 +1,13 @@
 # StackQuadrant
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](CHANGELOG.md)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 **The Gartner Magic Quadrant for AI developer tools — built by developers, for developers.**
 
-A data-driven intelligence platform for evaluating AI coding tools, open-source AI/LLM repositories, and community-built vibe-coded projects. Scores, benchmarks, quadrant charts, an auto-scored ecosystem directory with 30+ repos, and an AI-powered Ask + Suggest + Report widget for community-driven data quality.
+A data-driven intelligence platform for evaluating AI coding tools, open-source AI/LLM repositories, and community-built vibe-coded projects. Includes PainGaps retail intelligence (AI-powered pain point scanning), FinServ intelligence (team-based vendor pain maps, regulatory radar, practice & fund ops intelligence), tiered billing, and an AI-powered Ask + Suggest + Report widget.
 
 ![StackQuadrant Dashboard](public/screenshot-dashboard.png)
 
@@ -47,6 +47,25 @@ A data-driven intelligence platform for evaluating AI coding tools, open-source 
 - **Admin Review Dashboard** — Suggestions queue with status filters, evidence-first detail view, one-click approve/reject/request-info, change job pipeline
 - **Tool Changelog** — Public change history per tool, generated from approved suggestions
 
+### PainGaps Retail Intelligence
+- **Pain Point Scans** — Run AI-powered scans on any product/tool to detect user pain points from Reddit, review sites, Google Autocomplete, and Twitter
+- **AI Pain Analysis** — OpenAI-powered analysis generating titles, summaries, intensity/frequency/opportunity scores, affected segments, root causes, and competitive gaps
+- **Pain Universe Search** — Pro-only cross-scan search across all pain points with keyword, severity, trend, source, and date range filters
+- **Billing & Plans** — Free/Starter/Pro tiered billing via Stripe with checkout, portal, and webhooks
+- **User Authentication** — JWT dual auth: 15-minute access tokens + 30-day rotating refresh tokens
+- **Source Adapters** — Pluggable data collection: Reddit, Google Autocomplete, Twitter API v2, G2/Capterra review scraping, regulatory RSS feeds
+
+### FinServ Intelligence Platform
+- **Team Management** — Multi-tenant teams with role-based access (admin/analyst/viewer), plan-based seat limits across Analyst/Team/Business/Enterprise tiers
+- **Sector Taxonomy** — 6 financial sectors (Fund Services, Banking, Audit & Accounting, Wealth Management, Fiduciary, Accounting & Tax) with sub-categories
+- **Regulatory Radar** — RSS-ingested regulations (CSSF, FCA, SEC, ESMA, EBA) with status tracking, impact maps, and severity scoring
+- **Vendor Pain Map** — Track financial services vendors, monitor vendor-specific pain signals ranked by intensity
+- **Practice Intelligence** — Three-tab dashboard: Practice Pains, Service Opportunities (demand indicators + scoring), Talent Signals (hiring/retention/skills gap trends)
+- **Fund Operations Intelligence** — Pain index across 6 fund ops areas (NAV, Transfer Agency, Reporting, KYC/AML, Investor Comms, Reconciliation)
+- **Provider Comparison** — Side-by-side comparison of 2-5 fund service providers
+- **API Key Management** — Generate/revoke API keys with plan-based rate limits and audit logging
+- **Report Generation** — CSV/JSON export for vendor pains, regulations, and sector overviews (Business/Enterprise only)
+
 ### Platform Features
 - **Contextual Tooltips** — Hover any score, dimension header, or metric for explanations with evidence
 - **In-App Help** — Comprehensive guide to scores, navigation, and methodology at `/help`
@@ -65,7 +84,9 @@ A data-driven intelligence platform for evaluating AI coding tools, open-source 
 - **Styling**: CSS Custom Properties design tokens + Tailwind CSS utilities
 - **Visualizations**: Custom SVG components (score rings, radar charts, quadrant charts, score bars, sparklines)
 - **Animations**: Framer Motion
-- **Auth**: JWT (jose + bcryptjs)
+- **Auth**: JWT (jose + bcryptjs) — dual system: admin auth (24h) + user auth (15m access + 30d refresh)
+- **AI**: OpenAI API (pain analysis, solution ideas)
+- **Payments**: Stripe (checkout, billing portal, webhooks)
 - **Search**: cmdk command palette
 - **Email**: Nodemailer (Zoho SMTP)
 - **GitHub Integration**: Native fetch against GitHub REST API v3 — sync, discovery, and showcase auto-fill
@@ -137,6 +158,15 @@ src/
 │   ├── showcase/submit/            # Community submission form
 │   ├── showcase/verify/            # Email verification landing
 │   ├── built-with/[toolSlug]/      # Projects filtered by AI tool
+│   ├── (paingaps)/                 # PainGaps route group
+│   │   ├── scans/                  # Pain point scan management
+│   │   ├── intelligence/           # FinServ intelligence dashboard
+│   │   │   ├── regulations/        # Regulatory radar
+│   │   │   ├── vendors/            # Vendor pain map
+│   │   │   ├── team/               # Team management
+│   │   │   ├── practice/           # Practice intelligence
+│   │   │   └── fund-ops/           # Fund operations intelligence
+│   │   └── universe/               # Pain universe search (Pro)
 │   ├── best-for/                   # Best tool for use case pages
 │   ├── stack-builder/              # Interactive stack builder wizard
 │   ├── compare/                    # Side-by-side tool comparison
@@ -152,7 +182,12 @@ src/
 │       ├── showcase/               # Public showcase + submission endpoints
 │       ├── widget/                 # Ask, Suggest, Report widget endpoints
 │       ├── search/                 # Search index
-│       ├── auth/login/             # Admin authentication
+│       ├── auth/                   # Admin + user authentication
+│       ├── scans/                  # Pain scan endpoints
+│       ├── pain-points/            # Pain point endpoints
+│       ├── universe/               # Pain universe search
+│       ├── finserv/                # FinServ intelligence APIs
+│       ├── billing/                # Stripe billing endpoints
 │       ├── subscribers/            # Newsletter signup
 │       └── admin/                  # Admin CRUD + suggestions + reports + change-jobs
 ├── components/
@@ -164,8 +199,11 @@ src/
 ├── lib/
 │   ├── db/                         # Schema, queries, seed
 │   ├── mcp/                        # MCP server (12 tools, 2 resources)
-│   ├── services/                   # GitHub API service
-│   ├── hooks/                      # useAdmin hook
+│   ├── adapters/                   # Source adapters (Reddit, Google, Twitter, review sites, RSS)
+│   ├── services/                   # GitHub, team, finserv, billing, API key, scan, pain analysis
+│   ├── auth/                       # User authentication (JWT dual system)
+│   ├── hooks/                      # useAdmin, useUser hooks
+│   ├── engine/                     # Scan engine orchestration
 │   └── utils/                      # API helpers, auth, email, validation, rate limiting
 ├── styles/
 │   └── tokens.css                  # Design tokens (dark/light themes)
@@ -234,6 +272,41 @@ Community projects are rated on three criteria (each 0-10):
 | GET | `/api/v1/search` | Search index for command palette |
 | POST | `/api/v1/subscribers` | Newsletter signup |
 | GET | `/api/health` | Health check |
+
+### User Auth (JWT required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/signup` | User registration with plan selection |
+| POST | `/api/v1/auth/user-login` | Login (access + refresh tokens) |
+| POST | `/api/v1/auth/user-logout` | Revoke refresh token |
+| POST | `/api/v1/auth/refresh` | Rotate access token |
+| POST | `/api/v1/billing/checkout` | Create Stripe checkout session |
+| POST | `/api/v1/billing/portal` | Create Stripe billing portal |
+| GET/POST | `/api/v1/scans` | List/create pain scans |
+| GET | `/api/v1/scans/:id` | Scan detail with pain points |
+| POST | `/api/v1/scans/:id/run` | Execute scan with adapters |
+| GET | `/api/v1/pain-points` | List pain points (filtered) |
+| GET | `/api/v1/pain-points/:id` | Pain point detail |
+| POST | `/api/v1/pain-points/:id/analyze` | AI pain analysis |
+| GET | `/api/v1/universe/search` | Cross-scan search (Pro only) |
+| GET | `/api/v1/finserv/sectors` | List sector taxonomy |
+| GET | `/api/v1/finserv/sectors/:id/pains` | Sector pain aggregation |
+| GET/POST | `/api/v1/finserv/regulations` | List/add regulations |
+| GET | `/api/v1/finserv/regulations/:id` | Regulation detail |
+| GET/POST | `/api/v1/finserv/vendors` | List/add tracked vendors |
+| GET/DELETE | `/api/v1/finserv/vendors/:id` | Vendor detail/remove |
+| GET | `/api/v1/finserv/vendors/compare` | Multi-vendor comparison |
+| GET/POST/DELETE | `/api/v1/finserv/alerts` | Alert configuration |
+| GET/POST/PUT/DELETE | `/api/v1/finserv/teams` | Team CRUD |
+| GET/POST/DELETE | `/api/v1/finserv/teams/:id/members` | Member management |
+| GET | `/api/v1/finserv/practice/dashboard` | Practice pains |
+| GET | `/api/v1/finserv/practice/opportunities` | Service opportunities |
+| GET | `/api/v1/finserv/practice/talent` | Talent signals |
+| GET | `/api/v1/finserv/fund-ops/index` | Fund ops pain index |
+| GET | `/api/v1/finserv/fund-ops/providers/compare` | Provider comparison |
+| GET/POST/DELETE | `/api/v1/finserv/api-keys` | API key management |
+| POST | `/api/v1/finserv/reports/generate` | Report generation (CSV/JSON) |
 
 ### Admin (JWT required)
 

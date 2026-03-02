@@ -137,17 +137,51 @@ function slugify(name: string): string {
 }
 
 // Category → search queries mapping
-const CATEGORY_QUERIES: Record<string, string> = {
-  "llm-frameworks": "topic:llm topic:framework stars:>500",
-  "agent-frameworks": "topic:ai-agent OR topic:agent-framework stars:>300",
-  "rag-libraries": "topic:rag OR topic:retrieval-augmented-generation stars:>200",
-  "vector-databases": "topic:vector-database OR topic:vector-search stars:>200",
-  "inference-engines": "topic:llm-inference OR topic:model-serving stars:>300",
-  "fine-tuning": "topic:fine-tuning OR topic:llm-training stars:>200",
-  "prompt-engineering": "topic:prompt-engineering OR topic:prompt-optimization stars:>200",
-  "ai-devops": "topic:mlops OR topic:llmops stars:>200",
-  "model-serving": "topic:model-serving OR topic:inference-server stars:>200",
-  "evaluation-testing": "topic:llm-evaluation OR topic:ai-testing stars:>100",
+// GitHub Search API doesn't support OR with topic: qualifiers properly,
+// so we use multiple queries per category and deduplicate results.
+const CATEGORY_QUERIES: Record<string, string[]> = {
+  "llm-frameworks": [
+    "topic:llm topic:framework stars:>500",
+    "topic:large-language-model stars:>1000",
+  ],
+  "agent-frameworks": [
+    "topic:ai-agent stars:>300",
+    "topic:agent-framework stars:>300",
+    "topic:autonomous-agent topic:llm stars:>200",
+  ],
+  "rag-libraries": [
+    "topic:rag stars:>200",
+    "topic:retrieval-augmented-generation stars:>200",
+  ],
+  "vector-databases": [
+    "topic:vector-database stars:>200",
+    "topic:vector-search stars:>200",
+    "topic:embedding-database stars:>200",
+  ],
+  "inference-engines": [
+    "topic:llm-inference stars:>300",
+    "topic:inference-engine topic:llm stars:>300",
+  ],
+  "fine-tuning": [
+    "topic:fine-tuning topic:llm stars:>200",
+    "topic:llm-training stars:>200",
+  ],
+  "prompt-engineering": [
+    "topic:prompt-engineering stars:>200",
+    "topic:prompt-optimization stars:>100",
+  ],
+  "ai-devops": [
+    "topic:mlops stars:>200",
+    "topic:llmops stars:>100",
+  ],
+  "model-serving": [
+    "topic:model-serving stars:>200",
+    "topic:inference-server stars:>200",
+  ],
+  "evaluation-testing": [
+    "topic:llm-evaluation stars:>100",
+    "topic:ai-testing stars:>100",
+  ],
 };
 
 async function main() {
@@ -166,104 +200,114 @@ async function main() {
   let totalSkipped = 0;
   let totalSynced = 0;
 
-  for (const [categorySlug, query] of Object.entries(CATEGORY_QUERIES)) {
+  // Track already-seen repos across all queries to avoid duplicate processing
+  const seenRepos = new Set<string>();
+
+  for (const [categorySlug, queries] of Object.entries(CATEGORY_QUERIES)) {
     const categoryId = catMap.get(categorySlug);
     if (!categoryId) {
       console.warn(`  [skip] Category "${categorySlug}" not found in DB`);
       continue;
     }
 
-    console.log(`\n[${categorySlug}] Searching: ${query}`);
-    const res = await githubSearchFetch(query);
+    for (const query of queries) {
+      console.log(`\n[${categorySlug}] Searching: ${query}`);
+      const res = await githubSearchFetch(query);
 
-    if (!res.ok) {
-      console.error(`  Search failed: ${res.status} ${res.statusText}`);
-      if (res.status === 403) {
-        console.warn("  Rate limited, pausing 60s...");
-        await new Promise((r) => setTimeout(r, 60000));
-      }
-      continue;
-    }
-
-    const data = await res.json();
-    const items = data.items || [];
-    console.log(`  Found ${items.length} repos (total_count: ${data.total_count})`);
-    totalDiscovered += items.length;
-
-    for (const item of items) {
-      const owner = item.owner?.login;
-      const repoName = item.name;
-      if (!owner || !repoName) continue;
-
-      // Check if already exists
-      const [existing] = await db.select({ id: repos.id }).from(repos)
-        .where(and(eq(repos.githubOwner, owner), eq(repos.githubRepo, repoName)));
-
-      if (existing) {
-        totalSkipped++;
+      if (!res.ok) {
+        console.error(`  Search failed: ${res.status} ${res.statusText}`);
+        if (res.status === 403) {
+          console.warn("  Rate limited, pausing 60s...");
+          await new Promise((r) => setTimeout(r, 60000));
+        }
         continue;
       }
 
-      const slug = slugify(repoName);
+      const data = await res.json();
+      const items = data.items || [];
+      console.log(`  Found ${items.length} repos (total_count: ${data.total_count})`);
+      totalDiscovered += items.length;
 
-      // Check slug collision
-      const [slugExists] = await db.select({ id: repos.id }).from(repos).where(eq(repos.slug, slug));
-      const finalSlug = slugExists ? slugify(`${owner}-${repoName}`) : slug;
+      for (const item of items) {
+        const owner = item.owner?.login;
+        const repoName = item.name;
+        if (!owner || !repoName) continue;
 
-      // Insert
-      const [row] = await db.insert(repos).values({
-        name: item.full_name || repoName,
-        slug: finalSlug,
-        description: (item.description || `${repoName} — open-source AI/LLM project.`).slice(0, 1000),
-        githubOwner: owner,
-        githubRepo: repoName,
-        githubUrl: item.html_url || `https://github.com/${owner}/${repoName}`,
-        websiteUrl: item.homepage || null,
-        categoryId,
-        tags: item.topics?.slice(0, 10) || [],
-        status: "published",
-        language: item.language || null,
-        license: item.license?.spdx_id || null,
-        githubStars: item.stargazers_count || 0,
-        githubForks: item.forks_count || 0,
-        githubOpenIssues: item.open_issues_count || 0,
-        githubWatchers: item.subscribers_count || item.watchers_count || 0,
-        githubCreatedAt: item.created_at ? new Date(item.created_at) : null,
-        githubLastCommit: item.pushed_at ? new Date(item.pushed_at) : null,
-      }).returning();
+        // Skip if already processed in this run
+        const repoKey = `${owner}/${repoName}`.toLowerCase();
+        if (seenRepos.has(repoKey)) continue;
+        seenRepos.add(repoKey);
 
-      totalInserted++;
-      console.log(`  [+] ${owner}/${repoName} (★${(item.stargazers_count || 0).toLocaleString()})`);
+        // Check if already exists in DB
+        const [existing] = await db.select({ id: repos.id }).from(repos)
+          .where(and(eq(repos.githubOwner, owner), eq(repos.githubRepo, repoName)));
 
-      // Sync full metrics
-      console.log(`      Syncing metrics... (rate limit: ${rateLimitRemaining})`);
-      const metrics = await fetchMetrics(owner, repoName);
-      if (metrics) {
-        await db.update(repos).set({
-          githubStars: metrics.stars,
-          githubForks: metrics.forks,
-          githubOpenIssues: metrics.openIssues,
-          githubWatchers: metrics.watchers,
-          githubContributors: metrics.contributors,
-          githubLastCommit: metrics.lastCommit,
-          githubCreatedAt: metrics.createdAt,
-          githubLastRelease: metrics.lastRelease,
-          githubReleaseDate: metrics.releaseDate,
-          githubWeeklyCommits: metrics.weeklyCommits,
-          githubSyncedAt: new Date(),
-          language: metrics.language,
-          license: metrics.license,
-          updatedAt: new Date(),
-        }).where(eq(repos.id, row.id));
-        totalSynced++;
+        if (existing) {
+          totalSkipped++;
+          continue;
+        }
+
+        const slug = slugify(repoName);
+
+        // Check slug collision
+        const [slugExists] = await db.select({ id: repos.id }).from(repos).where(eq(repos.slug, slug));
+        const finalSlug = slugExists ? slugify(`${owner}-${repoName}`) : slug;
+
+        // Insert
+        const [row] = await db.insert(repos).values({
+          name: item.full_name || repoName,
+          slug: finalSlug,
+          description: (item.description || `${repoName} — open-source AI/LLM project.`).slice(0, 1000),
+          githubOwner: owner,
+          githubRepo: repoName,
+          githubUrl: item.html_url || `https://github.com/${owner}/${repoName}`,
+          websiteUrl: item.homepage || null,
+          categoryId,
+          tags: item.topics?.slice(0, 10) || [],
+          status: "published",
+          language: item.language || null,
+          license: item.license?.spdx_id || null,
+          githubStars: item.stargazers_count || 0,
+          githubForks: item.forks_count || 0,
+          githubOpenIssues: item.open_issues_count || 0,
+          githubWatchers: item.subscribers_count || item.watchers_count || 0,
+          githubCreatedAt: item.created_at ? new Date(item.created_at) : null,
+          githubLastCommit: item.pushed_at ? new Date(item.pushed_at) : null,
+        }).returning();
+
+        totalInserted++;
+        console.log(`  [+] ${owner}/${repoName} (★${(item.stargazers_count || 0).toLocaleString()})`);
+
+        // Sync full metrics
+        console.log(`      Syncing metrics... (rate limit: ${rateLimitRemaining})`);
+        const metrics = await fetchMetrics(owner, repoName);
+        if (metrics) {
+          await db.update(repos).set({
+            githubStars: metrics.stars,
+            githubForks: metrics.forks,
+            githubOpenIssues: metrics.openIssues,
+            githubWatchers: metrics.watchers,
+            githubContributors: metrics.contributors,
+            githubLastCommit: metrics.lastCommit,
+            githubCreatedAt: metrics.createdAt,
+            githubLastRelease: metrics.lastRelease,
+            githubReleaseDate: metrics.releaseDate,
+            githubWeeklyCommits: metrics.weeklyCommits,
+            githubSyncedAt: new Date(),
+            language: metrics.language,
+            license: metrics.license,
+            updatedAt: new Date(),
+          }).where(eq(repos.id, row.id));
+          totalSynced++;
+        }
+
+        // 1s delay between metric fetches
+        await new Promise((r) => setTimeout(r, 1000));
       }
 
-      // 1s delay between metric fetches
-      await new Promise((r) => setTimeout(r, 1000));
+      // 2s delay between search queries to respect search rate limit
+      await new Promise((r) => setTimeout(r, 2000));
     }
-
-    // 2s delay between search queries to respect search rate limit
-    await new Promise((r) => setTimeout(r, 2000));
   }
 
   console.log(`\n[discover] Done — discovered: ${totalDiscovered}, inserted: ${totalInserted}, synced: ${totalSynced}, skipped: ${totalSkipped}`);

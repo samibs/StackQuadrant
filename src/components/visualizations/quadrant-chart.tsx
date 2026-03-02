@@ -21,6 +21,19 @@ export interface QuadrantTool {
   scores?: ToolScore[];
 }
 
+// Generic entity type for domain-agnostic quadrant rendering
+export interface GenericQuadrantEntity {
+  id: string;
+  label: string;
+  x: number;          // 0-100
+  y: number;          // 0-100
+  colorValue?: number; // For color mapping (e.g., score 0-10)
+  sizeValue?: number;  // For size mapping
+  subtitle?: string;   // Secondary label (e.g., category)
+  scores?: { dimension: string; score: number | null }[];
+  metadata?: Record<string, unknown>;
+}
+
 interface QuadrantChartProps {
   xAxisLabel: string;
   yAxisLabel: string;
@@ -34,6 +47,24 @@ interface QuadrantChartProps {
   fullPage?: boolean;
   maxHeight?: string;
   onToolClick?: (tool: QuadrantTool) => void;
+}
+
+// Generic props for domain-agnostic usage
+export interface GenericQuadrantChartProps {
+  xAxisLabel: string;
+  yAxisLabel: string;
+  quadrantLabels: {
+    topRight: string;
+    topLeft: string;
+    bottomRight: string;
+    bottomLeft: string;
+  };
+  entities: GenericQuadrantEntity[];
+  fullPage?: boolean;
+  maxHeight?: string;
+  onEntityClick?: (entity: GenericQuadrantEntity) => void;
+  colorScale?: (value: number) => string;
+  sizeScale?: (value: number) => number;
 }
 
 interface TooltipState {
@@ -420,5 +451,50 @@ export function QuadrantChart({
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * Generic domain-agnostic quadrant chart.
+ * Accepts GenericQuadrantEntity[] and renders using the same visualization.
+ * Used by new verticals (PainGaps, FinServ) while the original QuadrantChart
+ * remains unchanged for the existing tools pages.
+ */
+export function GenericQuadrantChart({
+  xAxisLabel,
+  yAxisLabel,
+  quadrantLabels,
+  entities,
+  fullPage = false,
+  maxHeight,
+  onEntityClick,
+  colorScale,
+  sizeScale,
+}: GenericQuadrantChartProps) {
+  // Map generic entities to the existing QuadrantTool interface
+  const positions: QuadrantTool[] = entities.map((e) => ({
+    toolId: e.id,
+    toolName: e.label,
+    toolSlug: e.id,
+    xPosition: e.x,
+    yPosition: e.y,
+    overallScore: e.colorValue ?? null,
+    category: e.subtitle,
+    scores: e.scores,
+  }));
+
+  return (
+    <QuadrantChart
+      xAxisLabel={xAxisLabel}
+      yAxisLabel={yAxisLabel}
+      quadrantLabels={quadrantLabels}
+      positions={positions}
+      fullPage={fullPage}
+      maxHeight={maxHeight}
+      onToolClick={onEntityClick ? (tool) => {
+        const entity = entities.find((e) => e.id === tool.toolId);
+        if (entity) onEntityClick(entity);
+      } : undefined}
+    />
   );
 }

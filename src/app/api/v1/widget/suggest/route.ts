@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/utils/api";
 import { rateLimit, getClientIp } from "@/lib/utils/rate-limit";
 import { collectErrors, validateString, validateEnum, validateUrl } from "@/lib/utils/validate";
-import { createSuggestion, checkAndApplyCommunityVerification } from "@/lib/db/queries";
+import { createSuggestion, checkAndApplyCommunityVerification, trackContributorSubmission, getContributorByEmail, getAppSetting, updateSuggestionStatus, createChangeJob } from "@/lib/db/queries";
+import { sendSuggestionNotification } from "@/lib/utils/notifications";
 import { createHash } from "crypto";
 import DOMPurify from "isomorphic-dompurify";
 
@@ -97,6 +98,44 @@ export async function POST(request: NextRequest) {
       context,
       ipHash,
     });
+
+    // Track contributor reputation
+    if (body.submitterEmail) {
+      await trackContributorSubmission(body.submitterEmail);
+
+      // Auto-approve for eligible contributors (non-destructive types only)
+      const NON_DESTRUCTIVE_TYPES = ["add_tool", "update_metadata"];
+      if (NON_DESTRUCTIVE_TYPES.includes(body.type)) {
+        try {
+          const autoApproveEnabled = await getAppSetting("auto_approve_enabled");
+          if (autoApproveEnabled === true) {
+            const contributor = await getContributorByEmail(body.submitterEmail);
+            if (contributor?.autoApproveEligible) {
+              await updateSuggestionStatus(result.id, {
+                status: "approved",
+                adminNotes: "Auto-approved: trusted contributor",
+                reviewedBy: "system:auto-approve",
+              });
+              await createChangeJob({
+                suggestionId: result.id,
+                tableName: "tools",
+                operation: body.type === "add_tool" ? "insert" : "update",
+                payload: body.type === "add_tool"
+                  ? { name: { new: body.toolName } }
+                  : { note: { new: sanitizedReason } },
+              });
+              sendSuggestionNotification(
+                { ...result, submitterEmail: body.submitterEmail, toolSlug: body.toolSlug },
+                "auto_approved",
+              ).catch((err) => console.error("Auto-approve notification failed:", err));
+              return apiSuccess({ ...result, autoApproved: true }, undefined, 201);
+            }
+          }
+        } catch (err) {
+          console.error("Auto-approve check failed:", err);
+        }
+      }
+    }
 
     // Trigger community verification check asynchronously
     checkAndApplyCommunityVerification(result.id).catch((err) =>

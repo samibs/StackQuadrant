@@ -16,6 +16,9 @@ interface Suggestion {
   reviewedBy: string | null;
   communityVerified: boolean;
   supportCount: number;
+  upvotes: number;
+  downvotes: number;
+  netScore: number;
 }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
@@ -224,8 +227,11 @@ export default function AdminSuggestionsPage() {
                   </td>
                   <td style={{ padding: "8px 12px", textAlign: "center" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
-                        {s.supportCount || 0}
+                      <span style={{ fontSize: 12, fontWeight: 600, color: s.netScore > 0 ? "#22c55e" : s.netScore < 0 ? "#ef4444" : "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
+                        {s.netScore > 0 ? `+${s.netScore}` : s.netScore}
+                      </span>
+                      <span style={{ fontSize: 8, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                        {s.upvotes}↑ {s.downvotes}↓
                       </span>
                       {s.communityVerified && (
                         <span style={{ fontSize: 8, color: "#22c55e", fontWeight: 600 }}>VERIFIED</span>
