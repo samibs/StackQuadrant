@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getToolBySlug, getScoreHistory, getOverallScoreTrend } from "@/lib/db/queries";
+import { getToolBySlug, getScoreHistory, getOverallScoreTrend, getToolChangelogCount } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import { ToolDetailClient } from "./tool-detail-client";
 import { SoftwareApplicationJsonLd, BreadcrumbJsonLd } from "@/components/seo/json-ld";
@@ -31,9 +31,10 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
     notFound();
   }
 
-  const [history, overallTrend] = await Promise.all([
+  const [history, overallTrend, changelogCount] = await Promise.all([
     getScoreHistory(tool.id),
     getOverallScoreTrend(tool.id),
+    getToolChangelogCount(slug),
   ]);
 
   return (
@@ -50,7 +51,7 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
         score={tool.overallScore}
         vendor={tool.vendor}
       />
-      <ToolDetailClient tool={tool} scoreHistory={history} overallTrend={overallTrend} />
+      <ToolDetailClient tool={tool} scoreHistory={history} overallTrend={overallTrend} changelogCount={changelogCount} />
     </>
   );
 }

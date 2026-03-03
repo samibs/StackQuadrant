@@ -75,9 +75,11 @@ export default async function ShowcaseDetailPage({ params }: { params: Promise<{
             {project.description}
           </p>
           <div className="flex flex-wrap gap-[var(--space-3)] mt-[var(--space-3)]">
-            <a href={project.projectUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>
-              Live Project →
-            </a>
+            {project.projectUrl && (
+              <a href={project.projectUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>
+                Live Project →
+              </a>
+            )}
             {project.githubUrl && (
               <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>
                 GitHub →

@@ -7,6 +7,7 @@ import { ScoreRing } from "@/components/visualizations/score-ring";
 import { ScoreBar } from "@/components/visualizations/score-bar";
 import { RadarChart } from "@/components/visualizations/radar-chart";
 import { ScoreLegend } from "@/components/ui/tooltip";
+import { SuggestCorrectionLink } from "@/components/widget/suggest-correction-link";
 
 interface ToolDetail {
   id: string;
@@ -55,7 +56,7 @@ interface OverallTrendEntry {
   changedAt: Date;
 }
 
-export function ToolDetailClient({ tool, scoreHistory, overallTrend }: { tool: ToolDetail; scoreHistory: ScoreHistoryEntry[]; overallTrend: OverallTrendEntry[] }) {
+export function ToolDetailClient({ tool, scoreHistory, overallTrend, changelogCount = 0 }: { tool: ToolDetail; scoreHistory: ScoreHistoryEntry[]; overallTrend: OverallTrendEntry[]; changelogCount?: number }) {
   const validScores = tool.scores.filter((s) => s.score !== null).map((s) => ({
     dimension: s.dimension,
     score: s.score!,
@@ -134,6 +135,12 @@ export function ToolDetailClient({ tool, scoreHistory, overallTrend }: { tool: T
             <Link href={`/compare?tools=${tool.slug}`} style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>
               Compare &rarr;
             </Link>
+            <SuggestCorrectionLink toolSlug={tool.slug} toolName={tool.name} />
+            {changelogCount > 0 && (
+              <Link href={`/tools/${tool.slug}/changelog`} style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent-primary)" }}>
+                Changelog ({changelogCount})
+              </Link>
+            )}
             {tool.updatedAt && (
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-muted)" }}>
                 Last evaluated: {new Date(tool.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

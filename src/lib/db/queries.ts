@@ -1,6 +1,7 @@
 import { db } from "./index";
-import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks } from "./schema";
-import { eq, and, sql, desc, asc, ilike, count } from "drizzle-orm";
+import { tools, dimensions, toolScores, quadrants, quadrantPositions, benchmarks, benchmarkResults, stacks, stackTools, blogPosts, scoreHistory, overallScoreHistory, repos, repoCategories, repoDimensions, repoScores, showcaseProjects, showcaseToolLinks, suggestions, reports, changeJobs, toolChangelog, askQueries, appSettings, registeredSites, suggestionVotes, contributorStats, notificationLog } from "./schema";
+import crypto from "crypto";
+import { eq, and, sql, desc, asc, ilike, count, gte, lte } from "drizzle-orm";
 
 export async function getPublishedTools(opts: {
   page: number;
@@ -590,9 +591,11 @@ export async function getPublishedRepos(opts: {
   sort: string;
   search: string;
   category: string;
+  owner?: string;
 }) {
   const conditions = [eq(repos.status, "published")];
   if (opts.search) conditions.push(ilike(repos.name, `%${opts.search}%`));
+  if (opts.owner) conditions.push(eq(repos.githubOwner, opts.owner));
   if (opts.category) {
     const [cat] = await db.select({ id: repoCategories.id }).from(repoCategories).where(eq(repoCategories.slug, opts.category));
     if (cat) conditions.push(eq(repos.categoryId, cat.id));
@@ -800,4 +803,936 @@ export async function getShowcaseByTool(toolSlug: string) {
     .orderBy(desc(showcaseProjects.publishedAt));
 
   return { tool, projects };
+}
+
+// ============================================
+// Community Widget: Suggestions, Reports, Change Jobs
+// ============================================
+
+export async function createSuggestion(data: {
+  type: string;
+  toolName: string;
+  toolSlug?: string;
+  proposedQuadrant?: string;
+  reason: string;
+  evidenceLinks: string[];
+  tags: string[];
+  userRole: string;
+  submitterEmail?: string;
+  context: { pageUrl?: string; toolCardId?: string; browser?: string; locale?: string };
+  ipHash?: string;
+  site?: string;
+}) {
+  const [inserted] = await db.insert(suggestions).values({
+    type: data.type,
+    toolName: data.toolName,
+    toolSlug: data.toolSlug ?? null,
+    proposedQuadrant: data.proposedQuadrant ?? null,
+    reason: data.reason,
+    evidenceLinks: data.evidenceLinks,
+    tags: data.tags,
+    userRole: data.userRole,
+    submitterEmail: data.submitterEmail ?? null,
+    context: data.context,
+    ipHash: data.ipHash ?? null,
+    site: data.site ?? "stackquadrant",
+  }).returning();
+  return inserted;
+}
+
+export async function createReport(data: {
+  type: string;
+  toolSlug?: string;
+  page?: string;
+  description: string;
+  expectedResult?: string;
+  currentValue?: string;
+  correctedValue?: string;
+  fieldReference?: string;
+  evidenceLink?: string;
+  screenshotUrl?: string;
+  submitterEmail?: string;
+  context: { pageUrl?: string; browser?: string; locale?: string };
+  site?: string;
+}) {
+  const [inserted] = await db.insert(reports).values({
+    type: data.type,
+    toolSlug: data.toolSlug ?? null,
+    page: data.page ?? null,
+    description: data.description,
+    expectedResult: data.expectedResult ?? null,
+    currentValue: data.currentValue ?? null,
+    correctedValue: data.correctedValue ?? null,
+    fieldReference: data.fieldReference ?? null,
+    evidenceLink: data.evidenceLink ?? null,
+    screenshotUrl: data.screenshotUrl ?? null,
+    submitterEmail: data.submitterEmail ?? null,
+    context: data.context,
+    site: data.site ?? "stackquadrant",
+  }).returning();
+  return inserted;
+}
+
+export async function listSuggestions(opts: {
+  page: number;
+  pageSize: number;
+  status?: string;
+  type?: string;
+  sort?: string;
+  communityVerified?: boolean;
+  site?: string;
+}) {
+  const conditions = [];
+  if (opts.status) conditions.push(eq(suggestions.status, opts.status));
+  if (opts.type) conditions.push(eq(suggestions.type, opts.type));
+  if (opts.communityVerified !== undefined) conditions.push(eq(suggestions.communityVerified, opts.communityVerified));
+  if (opts.site) conditions.push(eq(suggestions.site, opts.site));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalResult] = await db.select({ count: count() }).from(suggestions).where(where);
+  const total = totalResult.count;
+
+  const sortValue = opts.sort || "-createdAt";
+  const sortDesc = sortValue.startsWith("-");
+  const sortField = sortValue.replace(/^-/, "");
+  const sortColumn = sortField === "createdAt" ? suggestions.createdAt
+    : sortField === "updatedAt" ? suggestions.updatedAt
+    : sortField === "toolName" ? suggestions.toolName
+    : sortField === "status" ? suggestions.status
+    : sortField === "supportCount" ? suggestions.supportCount
+    : sortField === "netScore" ? suggestions.netScore
+    : suggestions.createdAt;
+
+  const suggestionList = await db.select().from(suggestions).where(where)
+    .orderBy(sortDesc ? desc(sortColumn) : asc(sortColumn))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { suggestions: suggestionList, total };
+}
+
+export async function getSuggestionById(id: string) {
+  const [suggestion] = await db.select().from(suggestions).where(eq(suggestions.id, id));
+  if (!suggestion) return null;
+
+  const relatedJobs = await db.select().from(changeJobs)
+    .where(eq(changeJobs.suggestionId, id))
+    .orderBy(desc(changeJobs.createdAt));
+
+  return { ...suggestion, changeJobs: relatedJobs };
+}
+
+export async function updateSuggestionStatus(id: string, data: {
+  status: string;
+  adminNotes?: string;
+  rejectionReason?: string;
+  reviewedBy: string;
+}) {
+  const [updated] = await db.update(suggestions)
+    .set({
+      status: data.status,
+      adminNotes: data.adminNotes ?? null,
+      rejectionReason: data.rejectionReason ?? null,
+      reviewedBy: data.reviewedBy,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(suggestions.id, id))
+    .returning();
+  return updated;
+}
+
+export async function listReports(opts: {
+  page: number;
+  pageSize: number;
+  status?: string;
+  type?: string;
+  sort?: string;
+  site?: string;
+}) {
+  const conditions = [];
+  if (opts.status) conditions.push(eq(reports.status, opts.status));
+  if (opts.type) conditions.push(eq(reports.type, opts.type));
+  if (opts.site) conditions.push(eq(reports.site, opts.site));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalResult] = await db.select({ count: count() }).from(reports).where(where);
+  const total = totalResult.count;
+
+  const sortValue = opts.sort || "-createdAt";
+  const sortDesc = sortValue.startsWith("-");
+  const sortField = sortValue.replace(/^-/, "");
+  const sortColumn = sortField === "createdAt" ? reports.createdAt
+    : sortField === "updatedAt" ? reports.updatedAt
+    : sortField === "type" ? reports.type
+    : sortField === "status" ? reports.status
+    : reports.createdAt;
+
+  const reportList = await db.select().from(reports).where(where)
+    .orderBy(sortDesc ? desc(sortColumn) : asc(sortColumn))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { reports: reportList, total };
+}
+
+export async function getReportById(id: string) {
+  const [report] = await db.select().from(reports).where(eq(reports.id, id));
+  return report || null;
+}
+
+export async function updateReport(id: string, data: {
+  status?: string;
+  adminNotes?: string;
+  reviewedBy?: string;
+}) {
+  const setValues: Record<string, unknown> = { updatedAt: new Date() };
+  if (data.status !== undefined) setValues.status = data.status;
+  if (data.adminNotes !== undefined) setValues.adminNotes = data.adminNotes;
+  if (data.reviewedBy !== undefined) {
+    setValues.reviewedBy = data.reviewedBy;
+    setValues.reviewedAt = new Date();
+  }
+
+  const [updated] = await db.update(reports)
+    .set(setValues)
+    .where(eq(reports.id, id))
+    .returning();
+  return updated;
+}
+
+export async function createChangeJob(data: {
+  suggestionId: string;
+  tableName: string;
+  recordId?: string;
+  operation: string;
+  payload: Record<string, { old?: unknown; new: unknown }>;
+}) {
+  const [inserted] = await db.insert(changeJobs).values({
+    suggestionId: data.suggestionId,
+    tableName: data.tableName,
+    recordId: data.recordId ?? null,
+    operation: data.operation,
+    payload: data.payload,
+  }).returning();
+  return inserted;
+}
+
+export async function updateChangeJobStatus(id: string, data: {
+  status: string;
+  executedBy?: string;
+  changelogEntryId?: string;
+}) {
+  const setValues: Record<string, unknown> = { status: data.status };
+  if (data.executedBy !== undefined) {
+    setValues.executedBy = data.executedBy;
+    setValues.executedAt = new Date();
+  }
+  if (data.changelogEntryId !== undefined) setValues.changelogEntryId = data.changelogEntryId;
+
+  const [updated] = await db.update(changeJobs)
+    .set(setValues)
+    .where(eq(changeJobs.id, id))
+    .returning();
+  return updated;
+}
+
+export async function getChangeJobById(id: string) {
+  const [job] = await db.select().from(changeJobs).where(eq(changeJobs.id, id));
+  if (!job) return null;
+
+  const [suggestion] = await db.select().from(suggestions).where(eq(suggestions.id, job.suggestionId));
+  return { ...job, suggestion: suggestion || null };
+}
+
+export async function listChangeJobs(opts: {
+  page: number;
+  pageSize: number;
+  status?: string;
+}) {
+  const conditions = [];
+  if (opts.status) conditions.push(eq(changeJobs.status, opts.status));
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [totalResult] = await db.select({ count: count() }).from(changeJobs).where(where);
+  const total = totalResult.count;
+
+  const jobList = await db.select().from(changeJobs).where(where)
+    .orderBy(desc(changeJobs.createdAt))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { changeJobs: jobList, total };
+}
+
+export async function createToolChangelogEntry(data: {
+  toolSlug: string;
+  changeType: string;
+  summary: string;
+  details: { field?: string; oldValue?: unknown; newValue?: unknown };
+  evidenceLinks: string[];
+  suggestedBy?: string;
+  approvedBy: string;
+}) {
+  const [inserted] = await db.insert(toolChangelog).values({
+    toolSlug: data.toolSlug,
+    changeType: data.changeType,
+    summary: data.summary,
+    details: data.details,
+    evidenceLinks: data.evidenceLinks,
+    suggestedBy: data.suggestedBy ?? null,
+    approvedBy: data.approvedBy,
+  }).returning();
+  return inserted;
+}
+
+export async function getToolChangelog(toolSlug: string) {
+  return db.select().from(toolChangelog)
+    .where(eq(toolChangelog.toolSlug, toolSlug))
+    .orderBy(desc(toolChangelog.createdAt));
+}
+
+export async function checkCommunityVerification(toolSlug: string, type: string, proposedValue: string) {
+  const [result] = await db.select({ count: count() }).from(suggestions)
+    .where(and(
+      eq(suggestions.toolSlug, toolSlug),
+      eq(suggestions.type, type),
+      eq(suggestions.proposedQuadrant, proposedValue),
+      eq(suggestions.status, "pending"),
+    ));
+  return result.count;
+}
+
+export async function getSimilarSuggestions(toolSlug: string, type: string) {
+  return db.select().from(suggestions)
+    .where(and(
+      eq(suggestions.toolSlug, toolSlug),
+      eq(suggestions.type, type),
+    ))
+    .orderBy(desc(suggestions.createdAt))
+    .limit(20);
+}
+
+// ============================================
+// Phase 2: Intelligence Layer Queries
+// ============================================
+
+// --- Ask Queries Logging ---
+
+export async function logAskQuery(data: {
+  query: string;
+  normalizedQuery: string;
+  responseConfidence?: string;
+  toolsReferenced: string[];
+  ipHash?: string;
+  site?: string;
+}) {
+  const [inserted] = await db.insert(askQueries).values({
+    query: data.query,
+    normalizedQuery: data.normalizedQuery,
+    responseConfidence: data.responseConfidence ?? null,
+    toolsReferenced: data.toolsReferenced,
+    ipHash: data.ipHash ?? null,
+    site: data.site ?? "stackquadrant",
+  }).returning();
+  return inserted;
+}
+
+export async function getTopAskQueries(period: string, limit: number = 20, site?: string) {
+  const since = getPeriodDate(period);
+  const conditions = since ? [gte(askQueries.createdAt, since)] : [];
+  if (site) conditions.push(eq(askQueries.site, site));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  return db.select({
+    normalizedQuery: askQueries.normalizedQuery,
+    count: count(),
+  }).from(askQueries)
+    .where(where)
+    .groupBy(askQueries.normalizedQuery)
+    .orderBy(desc(count()))
+    .limit(limit);
+}
+
+// --- App Settings ---
+
+export async function getAppSetting(key: string) {
+  const [setting] = await db.select().from(appSettings).where(eq(appSettings.key, key));
+  return setting?.value ?? null;
+}
+
+export async function setAppSetting(key: string, value: unknown, updatedBy?: string) {
+  const [upserted] = await db.insert(appSettings).values({
+    key,
+    value: value as Record<string, unknown>,
+    updatedAt: new Date(),
+    updatedBy: updatedBy ?? null,
+  }).onConflictDoUpdate({
+    target: appSettings.key,
+    set: {
+      value: value as Record<string, unknown>,
+      updatedAt: new Date(),
+      updatedBy: updatedBy ?? null,
+    },
+  }).returning();
+  return upserted;
+}
+
+// --- Duplicate Detection ---
+
+export async function findDuplicateSuggestions(toolName: string, type: string, toolSlug?: string) {
+  const conditions = [
+    eq(suggestions.status, "pending"),
+    eq(suggestions.type, type),
+  ];
+
+  if (toolSlug) {
+    conditions.push(eq(suggestions.toolSlug, toolSlug));
+  } else {
+    conditions.push(ilike(suggestions.toolName, toolName));
+  }
+
+  return db.select({
+    id: suggestions.id,
+    type: suggestions.type,
+    toolName: suggestions.toolName,
+    toolSlug: suggestions.toolSlug,
+    proposedQuadrant: suggestions.proposedQuadrant,
+    reason: suggestions.reason,
+    supportCount: suggestions.supportCount,
+    communityVerified: suggestions.communityVerified,
+    createdAt: suggestions.createdAt,
+  }).from(suggestions)
+    .where(and(...conditions))
+    .orderBy(desc(suggestions.supportCount), desc(suggestions.createdAt))
+    .limit(5);
+}
+
+// --- Support Votes ---
+
+export async function addSupportVote(suggestionId: string, data: {
+  emailHash?: string;
+  evidence?: string;
+}) {
+  const [suggestion] = await db.select().from(suggestions).where(eq(suggestions.id, suggestionId));
+  if (!suggestion) return null;
+
+  const existingEmails = (suggestion.supporterEmails || []) as string[];
+  if (data.emailHash && existingEmails.includes(data.emailHash)) {
+    return { alreadySupported: true, supportCount: suggestion.supportCount };
+  }
+
+  const newEmails = data.emailHash ? [...existingEmails, data.emailHash] : existingEmails;
+  const existingEvidence = (suggestion.supporterEvidence || []) as Array<{ email?: string; evidence?: string; addedAt: string }>;
+  const newEvidence = data.evidence
+    ? [...existingEvidence, { email: data.emailHash, evidence: data.evidence, addedAt: new Date().toISOString() }]
+    : existingEvidence;
+
+  const [updated] = await db.update(suggestions)
+    .set({
+      supportCount: suggestion.supportCount + 1,
+      supporterEmails: newEmails,
+      supporterEvidence: newEvidence,
+      updatedAt: new Date(),
+    })
+    .where(eq(suggestions.id, suggestionId))
+    .returning();
+
+  return { alreadySupported: false, supportCount: updated.supportCount };
+}
+
+// --- Community Verification ---
+
+export async function checkAndApplyCommunityVerification(suggestionId: string) {
+  const [suggestion] = await db.select().from(suggestions).where(eq(suggestions.id, suggestionId));
+  if (!suggestion || suggestion.communityVerified) return false;
+
+  const thresholdSetting = await getAppSetting("verification_threshold");
+  const threshold = typeof thresholdSetting === "number" ? thresholdSetting : parseInt(String(thresholdSetting || "3"), 10);
+
+  // Find matching pending suggestions for the same tool and type
+  const conditions = [
+    eq(suggestions.toolSlug, suggestion.toolSlug ?? ""),
+    eq(suggestions.type, suggestion.type),
+    eq(suggestions.status, "pending"),
+  ];
+
+  // For move_tool, also match proposed quadrant
+  if (suggestion.type === "move_tool" && suggestion.proposedQuadrant) {
+    conditions.push(eq(suggestions.proposedQuadrant, suggestion.proposedQuadrant));
+  }
+
+  // For add_tool, match tool name
+  if (suggestion.type === "add_tool") {
+    conditions.push(ilike(suggestions.toolName, suggestion.toolName));
+  }
+
+  const matching = await db.select({ id: suggestions.id, ipHash: suggestions.ipHash })
+    .from(suggestions)
+    .where(and(...conditions));
+
+  // Count unique IPs (independent suggestions)
+  const uniqueIps = new Set(matching.map(m => m.ipHash).filter(Boolean));
+  const totalVoices = uniqueIps.size > 0 ? uniqueIps.size : matching.length;
+
+  if (totalVoices >= threshold) {
+    const matchingIds = matching.map(m => m.id);
+    await db.update(suggestions)
+      .set({ communityVerified: true, updatedAt: new Date() })
+      .where(sql`${suggestions.id} IN ${matchingIds}`);
+    return true;
+  }
+
+  return false;
+}
+
+// --- Analytics Aggregations ---
+
+function getPeriodDate(period: string): Date | null {
+  const now = new Date();
+  switch (period) {
+    case "7d": return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    case "30d": return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    case "90d": return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    default: return null;
+  }
+}
+
+export async function getSuggestionAnalytics(period: string, site?: string) {
+  const since = getPeriodDate(period);
+
+  const conditions = since ? [gte(suggestions.createdAt, since)] : [];
+  if (site) conditions.push(eq(suggestions.site, site));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const byType = await db.select({
+    type: suggestions.type,
+    count: count(),
+  }).from(suggestions).where(where).groupBy(suggestions.type);
+
+  const byStatus = await db.select({
+    status: suggestions.status,
+    count: count(),
+  }).from(suggestions).where(where).groupBy(suggestions.status);
+
+  const [totalResult] = await db.select({ count: count() }).from(suggestions).where(where);
+  const [verifiedResult] = await db.select({ count: count() }).from(suggestions)
+    .where(conditions.length > 0 ? and(...conditions, eq(suggestions.communityVerified, true)) : eq(suggestions.communityVerified, true));
+
+  // Over time: group by date (last 30 entries max)
+  const overTime = await db.select({
+    date: sql<string>`DATE(${suggestions.createdAt})`.as("date"),
+    count: count(),
+  }).from(suggestions).where(where)
+    .groupBy(sql`DATE(${suggestions.createdAt})`)
+    .orderBy(desc(sql`DATE(${suggestions.createdAt})`))
+    .limit(30);
+
+  return {
+    byType,
+    byStatus,
+    total: totalResult.count,
+    communityVerified: verifiedResult.count,
+    overTime: overTime.reverse(),
+  };
+}
+
+export async function getReportAnalytics(period: string, site?: string) {
+  const since = getPeriodDate(period);
+  const conditions = since ? [gte(reports.createdAt, since)] : [];
+  if (site) conditions.push(eq(reports.site, site));
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const byType = await db.select({
+    type: reports.type,
+    count: count(),
+  }).from(reports).where(where).groupBy(reports.type);
+
+  const overTime = await db.select({
+    date: sql<string>`DATE(${reports.createdAt})`.as("date"),
+    count: count(),
+  }).from(reports).where(where)
+    .groupBy(sql`DATE(${reports.createdAt})`)
+    .orderBy(desc(sql`DATE(${reports.createdAt})`))
+    .limit(30);
+
+  const [totalResult] = await db.select({ count: count() }).from(reports).where(where);
+
+  return {
+    byType,
+    total: totalResult.count,
+    overTime: overTime.reverse(),
+  };
+}
+
+export async function getWidgetEngagementStats(period: string, site?: string) {
+  const since = getPeriodDate(period);
+
+  const askConditions = since ? [gte(askQueries.createdAt, since)] : [];
+  const suggestConditions = since ? [gte(suggestions.createdAt, since)] : [];
+  const reportConditions = since ? [gte(reports.createdAt, since)] : [];
+  if (site) {
+    askConditions.push(eq(askQueries.site, site));
+    suggestConditions.push(eq(suggestions.site, site));
+    reportConditions.push(eq(reports.site, site));
+  }
+
+  const [askCount] = await db.select({ count: count() }).from(askQueries)
+    .where(askConditions.length > 0 ? and(...askConditions) : undefined);
+  const [suggestCount] = await db.select({ count: count() }).from(suggestions)
+    .where(suggestConditions.length > 0 ? and(...suggestConditions) : undefined);
+  const [reportCount] = await db.select({ count: count() }).from(reports)
+    .where(reportConditions.length > 0 ? and(...reportConditions) : undefined);
+
+  // Average review time for suggestions (approved/rejected)
+  const reviewedSuggestions = await db.select({
+    createdAt: suggestions.createdAt,
+    reviewedAt: suggestions.reviewedAt,
+  }).from(suggestions)
+    .where(and(
+      ...(suggestConditions.length > 0 ? suggestConditions : []),
+      sql`${suggestions.reviewedAt} IS NOT NULL`,
+    ))
+    .limit(100);
+
+  let avgReviewMs = 0;
+  if (reviewedSuggestions.length > 0) {
+    const totalMs = reviewedSuggestions.reduce((sum, s) => {
+      return sum + (new Date(s.reviewedAt!).getTime() - new Date(s.createdAt).getTime());
+    }, 0);
+    avgReviewMs = totalMs / reviewedSuggestions.length;
+  }
+
+  return {
+    askQueries: askCount.count,
+    suggestions: suggestCount.count,
+    reports: reportCount.count,
+    avgReviewTimeHours: Math.round(avgReviewMs / (1000 * 60 * 60) * 10) / 10,
+  };
+}
+
+// --- Confidence Scoring ---
+
+export async function calculateConfidence(toolSlugs: string[]) {
+  if (toolSlugs.length === 0) return { level: "low" as const, score: 0, factors: ["No tools referenced"] };
+
+  let score = 0;
+  const factors: string[] = [];
+
+  // Data completeness (0-40 points) - check first tool's dimension scores
+  const allDims = await db.select().from(dimensions);
+  const totalDimensions = allDims.length || 6;
+
+  if (toolSlugs.length > 0) {
+    const [firstTool] = await db.select().from(tools).where(eq(tools.slug, toolSlugs[0]));
+    if (firstTool) {
+      const scores = await db.select().from(toolScores).where(eq(toolScores.toolId, firstTool.id));
+      const dimensionsScored = scores.filter(s => parseFloat(s.score) > 0).length;
+      const completeness = (dimensionsScored / totalDimensions) * 40;
+      score += completeness;
+      factors.push(`${dimensionsScored}/${totalDimensions} dimensions scored`);
+
+      // Data freshness (0-30 points)
+      const daysSinceUpdate = Math.floor((Date.now() - new Date(firstTool.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceUpdate < 30) score += 30;
+      else if (daysSinceUpdate < 90) score += 20;
+      else if (daysSinceUpdate < 180) score += 10;
+      factors.push(`Last updated ${daysSinceUpdate} days ago`);
+    }
+  }
+
+  // Database coverage (0-30 points)
+  const [publishedCount] = await db.select({ count: count() }).from(tools).where(eq(tools.status, "published"));
+  const totalTools = publishedCount.count;
+  if (totalTools >= 15) score += 30;
+  else if (totalTools >= 10) score += 20;
+  else if (totalTools >= 5) score += 10;
+  factors.push(`${totalTools} tools in database`);
+
+  const level = score >= 70 ? "high" as const : score >= 40 ? "medium" as const : "low" as const;
+
+  return { level, score: Math.round(score), factors };
+}
+
+// ============================================
+// Phase 3: Registered Sites
+// ============================================
+
+export async function getRegisteredSites() {
+  return db.select().from(registeredSites).orderBy(asc(registeredSites.id));
+}
+
+export async function getRegisteredSite(id: string) {
+  const [site] = await db.select().from(registeredSites).where(eq(registeredSites.id, id));
+  return site || null;
+}
+
+export async function getActiveSiteIds(): Promise<string[]> {
+  const sites = await db.select({ id: registeredSites.id })
+    .from(registeredSites)
+    .where(eq(registeredSites.active, true));
+  return sites.map(s => s.id);
+}
+
+export async function createRegisteredSite(data: {
+  id: string;
+  name: string;
+  origin: string;
+  mcpConfig: Record<string, unknown>;
+  active?: boolean;
+}) {
+  const [inserted] = await db.insert(registeredSites).values({
+    id: data.id,
+    name: data.name,
+    origin: data.origin,
+    mcpConfig: data.mcpConfig as { systemPrompt?: string; tools?: string[]; resources?: string[] },
+    active: data.active ?? true,
+  }).returning();
+  return inserted;
+}
+
+export async function updateRegisteredSite(id: string, data: {
+  name?: string;
+  origin?: string;
+  mcpConfig?: Record<string, unknown>;
+  active?: boolean;
+}) {
+  const setValues: Record<string, unknown> = {};
+  if (data.name !== undefined) setValues.name = data.name;
+  if (data.origin !== undefined) setValues.origin = data.origin;
+  if (data.mcpConfig !== undefined) setValues.mcpConfig = data.mcpConfig;
+  if (data.active !== undefined) setValues.active = data.active;
+
+  const [updated] = await db.update(registeredSites)
+    .set(setValues)
+    .where(eq(registeredSites.id, id))
+    .returning();
+  return updated;
+}
+
+export async function deleteRegisteredSite(id: string) {
+  const [deleted] = await db.delete(registeredSites)
+    .where(eq(registeredSites.id, id))
+    .returning();
+  return deleted;
+}
+
+// ============================================
+// Phase 4: Suggestion Voting
+// ============================================
+
+export async function castSuggestionVote(suggestionId: string, vote: "up" | "down", ipHash: string) {
+  // Check if already voted
+  const [existing] = await db.select().from(suggestionVotes)
+    .where(and(eq(suggestionVotes.suggestionId, suggestionId), eq(suggestionVotes.ipHash, ipHash)));
+
+  if (existing) {
+    if (existing.vote === vote) {
+      return { alreadyVoted: true, vote: existing.vote };
+    }
+    // Change vote direction
+    await db.update(suggestionVotes)
+      .set({ vote })
+      .where(eq(suggestionVotes.id, existing.id));
+
+    // Update cached counts: flip from old to new
+    const delta = vote === "up" ? 1 : -1;
+    await db.update(suggestions)
+      .set({
+        upvotes: sql`${suggestions.upvotes} + ${delta}`,
+        downvotes: sql`${suggestions.downvotes} - ${delta}`,
+        netScore: sql`${suggestions.netScore} + ${2 * delta}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(suggestions.id, suggestionId));
+
+    const [updated] = await db.select({ netScore: suggestions.netScore }).from(suggestions).where(eq(suggestions.id, suggestionId));
+    return { alreadyVoted: false, changed: true, netScore: updated?.netScore ?? 0 };
+  }
+
+  // New vote
+  await db.insert(suggestionVotes).values({ suggestionId, vote, ipHash });
+
+  if (vote === "up") {
+    await db.update(suggestions)
+      .set({
+        upvotes: sql`${suggestions.upvotes} + 1`,
+        netScore: sql`${suggestions.netScore} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(suggestions.id, suggestionId));
+  } else {
+    await db.update(suggestions)
+      .set({
+        downvotes: sql`${suggestions.downvotes} + 1`,
+        netScore: sql`${suggestions.netScore} - 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(suggestions.id, suggestionId));
+  }
+
+  const [updated] = await db.select({ netScore: suggestions.netScore }).from(suggestions).where(eq(suggestions.id, suggestionId));
+  return { alreadyVoted: false, changed: false, netScore: updated?.netScore ?? 0 };
+}
+
+export async function getSuggestionVoteCounts(suggestionId: string) {
+  const [suggestion] = await db.select({
+    upvotes: suggestions.upvotes,
+    downvotes: suggestions.downvotes,
+    netScore: suggestions.netScore,
+  }).from(suggestions).where(eq(suggestions.id, suggestionId));
+  return suggestion || { upvotes: 0, downvotes: 0, netScore: 0 };
+}
+
+export async function getUserVoteOnSuggestion(suggestionId: string, ipHash: string) {
+  const [vote] = await db.select({ vote: suggestionVotes.vote })
+    .from(suggestionVotes)
+    .where(and(eq(suggestionVotes.suggestionId, suggestionId), eq(suggestionVotes.ipHash, ipHash)));
+  return vote?.vote || null;
+}
+
+// ============================================
+// Phase 4: Contributor Reputation
+// ============================================
+
+function hashEmail(email: string): string {
+  return crypto.createHash("sha256").update(email.toLowerCase().trim()).digest("hex");
+}
+
+function emailPreview(email: string): string {
+  const parts = email.split("@");
+  if (parts.length !== 2) return "***";
+  const local = parts[0];
+  const domain = parts[1];
+  return local.substring(0, 3) + "***@" + domain;
+}
+
+export async function trackContributorSubmission(email: string) {
+  const hash = hashEmail(email);
+  const preview = emailPreview(email);
+  const now = new Date();
+
+  const [existing] = await db.select().from(contributorStats).where(eq(contributorStats.emailHash, hash));
+
+  if (existing) {
+    await db.update(contributorStats)
+      .set({
+        totalSubmissions: existing.totalSubmissions + 1,
+        lastSubmission: now,
+      })
+      .where(eq(contributorStats.emailHash, hash));
+    return { ...existing, totalSubmissions: existing.totalSubmissions + 1, lastSubmission: now };
+  }
+
+  const [inserted] = await db.insert(contributorStats).values({
+    emailHash: hash,
+    emailPreview: preview,
+    totalSubmissions: 1,
+    firstSubmission: now,
+    lastSubmission: now,
+  }).returning();
+  return inserted;
+}
+
+export async function updateContributorOnStatusChange(email: string, newStatus: string) {
+  if (newStatus !== "approved" && newStatus !== "rejected") return null;
+
+  const hash = hashEmail(email);
+  const [existing] = await db.select().from(contributorStats).where(eq(contributorStats.emailHash, hash));
+  if (!existing) return null;
+
+  const approved = existing.approvedCount + (newStatus === "approved" ? 1 : 0);
+  const rejected = existing.rejectedCount + (newStatus === "rejected" ? 1 : 0);
+  const total = existing.totalSubmissions;
+  const reputationScore = total > 0 ? Math.round((approved / total) * 100) : 0;
+
+  // Check auto-approve eligibility
+  const autoApproveSetting = await getAppSetting("auto_approve_threshold");
+  const threshold = typeof autoApproveSetting === "number" ? autoApproveSetting : 90;
+  const minSubmissionsSetting = await getAppSetting("auto_approve_min_submissions");
+  const minSubmissions = typeof minSubmissionsSetting === "number" ? minSubmissionsSetting : 10;
+  const autoApproveEligible = reputationScore >= threshold && total >= minSubmissions;
+
+  const [updated] = await db.update(contributorStats)
+    .set({
+      approvedCount: approved,
+      rejectedCount: rejected,
+      reputationScore,
+      autoApproveEligible,
+    })
+    .where(eq(contributorStats.emailHash, hash))
+    .returning();
+
+  return updated;
+}
+
+export async function getContributorByEmail(email: string) {
+  const hash = hashEmail(email);
+  const [stats] = await db.select().from(contributorStats).where(eq(contributorStats.emailHash, hash));
+  return stats || null;
+}
+
+export async function getContributorByHash(hash: string) {
+  const [stats] = await db.select().from(contributorStats).where(eq(contributorStats.emailHash, hash));
+  return stats || null;
+}
+
+export async function listContributors(opts: { page: number; pageSize: number; sort?: string }) {
+  const sortDesc = (opts.sort || "-reputation_score").startsWith("-");
+  const sortField = (opts.sort || "-reputation_score").replace(/^-/, "");
+
+  const sortColumn = sortField === "total_submissions" ? contributorStats.totalSubmissions
+    : sortField === "approved_count" ? contributorStats.approvedCount
+    : sortField === "last_submission" ? contributorStats.lastSubmission
+    : contributorStats.reputationScore;
+
+  const [totalResult] = await db.select({ count: count() }).from(contributorStats);
+  const data = await db.select().from(contributorStats)
+    .orderBy(sortDesc ? desc(sortColumn) : asc(sortColumn))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { data, total: totalResult.count };
+}
+
+// ============================================
+// Phase 4: Notification Log
+// ============================================
+
+export async function logNotification(data: {
+  suggestionId?: string;
+  recipientEmail: string;
+  type: string;
+  emailSubject: string;
+}) {
+  const [inserted] = await db.insert(notificationLog).values({
+    suggestionId: data.suggestionId,
+    recipientEmail: data.recipientEmail,
+    type: data.type,
+    emailSubject: data.emailSubject,
+  }).returning();
+  return inserted;
+}
+
+export async function getNotificationHistory(opts: { page: number; pageSize: number }) {
+  const [totalResult] = await db.select({ count: count() }).from(notificationLog);
+  const data = await db.select().from(notificationLog)
+    .orderBy(desc(notificationLog.sentAt))
+    .limit(opts.pageSize)
+    .offset((opts.page - 1) * opts.pageSize);
+
+  return { data, total: totalResult.count };
+}
+
+// ============================================
+// Phase 4: Public Changelog
+// ============================================
+
+export async function getToolChangelogCount(toolSlug: string): Promise<number> {
+  const [result] = await db.select({ count: count() }).from(toolChangelog)
+    .where(eq(toolChangelog.toolSlug, toolSlug));
+  return result.count;
 }

@@ -50,6 +50,11 @@
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
+  /* Our Projects accent (gold/amber) */
+  --accent-owned: #f59e0b;
+  --accent-owned-dim: #b45309;
+  --bg-owned: rgba(245, 158, 11, 0.08);
+
   /* Shadows (minimal — flat design) */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
@@ -67,6 +72,9 @@
   --accent-primary: #16a34a;
   --accent-glow: #bbf7d0;
   --accent-hover: #15803d;
+  --accent-owned: #d97706;
+  --accent-owned-dim: #92400e;
+  --bg-owned: rgba(217, 119, 6, 0.06);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 

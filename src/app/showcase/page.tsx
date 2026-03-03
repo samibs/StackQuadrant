@@ -57,7 +57,7 @@ export default async function ShowcasePage({ searchParams }: { searchParams: Pro
         </div>
 
         {data.projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-[64px]" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+          <div className="flex flex-col items-center justify-center py-[64px] empty-state-wide" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", minHeight: "30vh" }}>
             <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-muted)", marginBottom: "var(--space-3)" }}>No showcase projects yet.</p>
             <Link
               href="/showcase/submit"
@@ -67,7 +67,7 @@ export default async function ShowcasePage({ searchParams }: { searchParams: Pro
             </Link>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(300px, 100%), 1fr))", gap: "var(--grid-gap)" }}>
+          <div className="card-grid-wide" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(300px, 100%), 1fr))", gap: "var(--grid-gap)" }}>
             {data.projects.map((project) => (
               <Link
                 key={project.id}

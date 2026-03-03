@@ -3,7 +3,7 @@ import { Panel } from "@/components/layout/panel";
 
 export const metadata = {
   title: "Help & User Guide",
-  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, and use keyboard shortcuts.",
+  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, use the Ask widget, suggest corrections, report issues, run PainGaps scans, and explore FinServ intelligence.",
   alternates: { canonical: "/help" },
 };
 
@@ -95,19 +95,33 @@ export default function HelpPage() {
                 { name: "Quadrants", href: "/quadrants", desc: "Interactive 2D charts positioning tools into four regions: Leaders, Visionaries, Challengers, and Niche Players. Click any dot to view the tool." },
                 { name: "Benchmarks", href: "/benchmarks", desc: "Structured benchmark results for specific AI coding tasks. Compare tools side-by-side on real-world tasks." },
                 { name: "Stacks", href: "/stacks", desc: "Evaluate tool combinations for specific workflows. Stacks are rated by how well the tools work together." },
-                { name: "Repos", href: "/repos", desc: "AI/LLM Ecosystem Directory. Browse and filter open-source repos by category (frameworks, agents, RAG, vector DBs, etc.) with automated GitHub metrics." },
-                { name: "Showcase", href: "/showcase", desc: "Vibe Coding Showcase. Community-submitted projects built with AI tools. Submit your own project and get quality-scored by our team." },
+                { name: "Repos", href: "/repos", desc: "AI/LLM Ecosystem Directory. Browse and filter open-source repos by category with automated GitHub metrics, auto-generated quality scores, and weekly discovery of new repos." },
+                { name: "Showcase", href: "/showcase", desc: "Vibe Coding Showcase. Community-submitted projects built with AI tools. Auto-fill from GitHub, submit without a live URL for libraries/CLIs, and get quality-scored." },
                 { name: "Best For", href: "/best-for", desc: "Find the right AI tool for your use case — rapid prototyping, enterprise, learning, open-source, and more." },
                 { name: "Stack Builder", href: "/stack-builder", desc: "Interactive wizard to compose a custom tool stack, assign roles, and analyze strengths and gaps." },
+                { name: "Pain Scans", href: "/scans", desc: "PainGaps Retail Intelligence. Run AI-powered scans on products to detect user pain points from Reddit, review sites, Google Autocomplete, and Twitter.", premium: true },
+                { name: "Intelligence", href: "/intelligence", desc: "FinServ Intelligence Platform. Team-based vendor pain maps, regulatory radar, practice intelligence, fund operations analysis, and sector taxonomy.", premium: true },
+                { name: "Pain Universe", href: "/universe", desc: "Pro-only cross-scan search across all detected pain points with keyword, severity, trend, source, and date range filters.", premium: true },
                 { name: "Methodology", href: "/methodology", desc: "Detailed explanation of our evaluation process, scoring criteria, and update cadence." },
-              ].map((page) => (
+              ].map((page: { name: string; href: string; desc: string; premium?: boolean }) => (
                 <Link
                   key={page.href}
                   href={page.href}
                   className="no-underline"
-                  style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", display: "block" }}
+                  style={{ padding: "var(--space-2)", border: page.premium ? "1px solid #d4a017" : "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", display: "block" }}
                 >
-                  <div style={{ fontWeight: 600, color: "var(--accent-primary)", fontSize: "13px" }}>{page.name}</div>
+                  <div style={{ fontWeight: 600, color: "var(--accent-primary)", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    {page.name}
+                    {page.premium && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "9px", fontWeight: 600, color: "#d4a017", background: "rgba(212, 160, 23, 0.12)", padding: "1px 6px", borderRadius: "8px", border: "1px solid rgba(212, 160, 23, 0.3)", lineHeight: "1.4" }}>
+                        <svg width="8" height="8" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                          <rect x="3" y="7" width="10" height="8" rx="1.5" fill="#d4a017" />
+                          <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#d4a017" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                        </svg>
+                        PREMIUM
+                      </span>
+                    )}
+                  </div>
                   <p style={{ marginTop: "2px", color: "var(--text-secondary)", fontSize: "11px" }}>{page.desc}</p>
                 </Link>
               ))}
@@ -131,6 +145,61 @@ export default function HelpPage() {
                   <span style={{ lineHeight: "1.5" }}>{shortcut.action}</span>
                 </div>
               ))}
+            </div>
+          </Panel>
+
+          <Panel title="Ask Widget">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>Click the <strong style={{ color: "var(--text-primary)" }}>? button</strong> in the bottom-right corner to open the Ask + Suggest + Report widget. It has three modes:</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Ask Mode</div>
+                <p style={{ fontSize: "11px" }}>Ask questions about tools, stacks, and quadrants. The AI uses MCP tools to query real data and returns structured answers with recommendation cards, confidence scores, rationale bullets, and alternatives. Use quick prompts or type your own question.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Suggest Mode</div>
+                <p style={{ fontSize: "11px" }}>Submit structured corrections: add a missing tool, move a tool to a different quadrant, update metadata, merge duplicates, or flag discontinued tools. Include evidence links and your reasoning. Rate limited to 5 submissions per hour.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Report Mode</div>
+                <p style={{ fontSize: "11px" }}>Report bugs (what happened vs expected, with optional screenshot) or data quality issues (specify the field, current value, and corrected value with evidence). Rate limited to 10 reports per hour.</p>
+              </div>
+              <p style={{ fontSize: "11px" }}>You can also click <strong style={{ color: "var(--text-primary)" }}>&quot;Suggest a correction&quot;</strong> on any tool detail page to open the widget pre-filled with that tool&apos;s context.</p>
+            </div>
+          </Panel>
+
+          <Panel title={<span style={{ display: "flex", alignItems: "center", gap: "8px" }}>PainGaps Retail<span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "9px", fontWeight: 600, color: "#d4a017", background: "rgba(212, 160, 23, 0.12)", padding: "1px 6px", borderRadius: "8px", border: "1px solid rgba(212, 160, 23, 0.3)", lineHeight: "1.4" }}><svg width="8" height="8" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="8" rx="1.5" fill="#d4a017" /><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#d4a017" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>PREMIUM</span></span>}>
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>PainGaps scans products and tools to detect real user pain points using AI-powered analysis across multiple data sources.</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Running Scans</div>
+                <p style={{ fontSize: "11px" }}>Create a scan at <Link href="/scans" style={{ color: "var(--accent-primary)" }}>/scans</Link>, specify a product name, and run it. The engine collects pain signals from Reddit, Google Autocomplete, Twitter, and review sites, then uses AI to analyze intensity, frequency, and trends.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Plans & Limits</div>
+                <p style={{ fontSize: "11px" }}>Free: 3 scans/month, 10 pain points. Starter: 20 scans/month, 100 pain points. Pro: unlimited scans, universe search, competitive gap extraction.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Pain Universe</div>
+                <p style={{ fontSize: "11px" }}>Pro users can search across all scans at <Link href="/universe" style={{ color: "var(--accent-primary)" }}>/universe</Link> to find patterns, filter by severity/trend/source, and extract competitive gaps.</p>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title={<span style={{ display: "flex", alignItems: "center", gap: "8px" }}>FinServ Intelligence<span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "9px", fontWeight: 600, color: "#d4a017", background: "rgba(212, 160, 23, 0.12)", padding: "1px 6px", borderRadius: "8px", border: "1px solid rgba(212, 160, 23, 0.3)", lineHeight: "1.4" }}><svg width="8" height="8" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="8" rx="1.5" fill="#d4a017" /><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#d4a017" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>PREMIUM</span></span>}>
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>Team-based intelligence platform for financial services professionals. Navigate to <Link href="/intelligence" style={{ color: "var(--accent-primary)" }}>/intelligence</Link> to access all modules.</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Teams & Sectors</div>
+                <p style={{ fontSize: "11px" }}>Create a team, invite members (admin/analyst/viewer roles), and track vendors across 6 financial sectors. Plan tiers: Analyst, Team, Business, Enterprise.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Intelligence Modules</div>
+                <p style={{ fontSize: "11px" }}>Regulatory Radar (track regulations from CSSF, FCA, SEC, ESMA, EBA), Vendor Pain Map (monitor vendor-specific pain signals), Practice Intelligence (pains, opportunities, talent), Fund Ops (operational pain index across NAV, TA, Reporting, KYC, Comms, Recon).</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>API Keys & Reports</div>
+                <p style={{ fontSize: "11px" }}>Team/Business/Enterprise plans can generate API keys for programmatic access. Business/Enterprise can export CSV/JSON reports for vendor pains, regulations, and sector overviews.</p>
+              </div>
             </div>
           </Panel>
         </div>
@@ -164,6 +233,44 @@ export default function HelpPage() {
             </div>
           </Panel>
 
+          <Panel title="Repo Quality Scoring">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>Repository quality scores are <strong style={{ color: "var(--text-primary)" }}>auto-generated</strong> from GitHub metrics using a transparent methodology:</p>
+              {[
+                { name: "Documentation Quality (20%)", desc: "Docs site presence, description quality, stars as proxy for doc investment, contributor count." },
+                { name: "Community Health (20%)", desc: "Stars, contributors, watchers, forks, and open issue ratio relative to popularity." },
+                { name: "API Design & DX (20%)", desc: "Stars-to-issues ratio, typed language bonus, documentation site, permissive license." },
+                { name: "Maintenance Velocity (15%)", desc: "Last commit freshness, weekly commits, release cadence, repo maturity." },
+                { name: "Production Readiness (15%)", desc: "Battle-tested usage, peer review count, versioned releases, license, age." },
+                { name: "Ecosystem Integration (10%)", desc: "Fork interest, language ecosystem popularity, license permissiveness, adoption." },
+              ].map((d) => (
+                <div key={d.name} style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                  <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "11px" }}>{d.name}</div>
+                  <p style={{ fontSize: "11px", marginTop: "2px" }}>{d.desc}</p>
+                </div>
+              ))}
+              <p style={{ fontSize: "11px" }}>Scores use logarithmic normalization for wide-range metrics. Each score includes evidence text visible on the repo detail page.</p>
+            </div>
+          </Panel>
+
+          <Panel title="Showcase Submission">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>Submit your AI-built project at <Link href="/showcase/submit" style={{ color: "var(--accent-primary)" }}>/showcase/submit</Link>.</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>GitHub Auto-Fill</div>
+                <p style={{ fontSize: "11px" }}>Paste your GitHub repo URL and click Import to auto-fill project name, description, tech stack (from languages and topics), and builder info.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>No Live URL Required</div>
+                <p style={{ fontSize: "11px" }}>Frameworks, CLI tools, and libraries without a live web presence can be submitted — the live project URL is optional.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Verification Flow</div>
+                <p style={{ fontSize: "11px" }}>Submit → verify your email → admin reviews → published. Quality-scored on: does it work, code quality, and shipped status.</p>
+              </div>
+            </div>
+          </Panel>
+
           <Panel title="Admin Guide">
             <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
               <p>Admins can manage all content through the <Link href="/admin/login" style={{ color: "var(--accent-primary)" }}>admin dashboard</Link>.</p>
@@ -177,6 +284,9 @@ export default function HelpPage() {
                   <li>Add AI/LLM repos, trigger GitHub sync, score quality dimensions</li>
                   <li>Manage repo categories (add, edit, reorder)</li>
                   <li>Moderate showcase submissions (approve, reject, quality-score)</li>
+                  <li>Review community suggestions (approve, reject, request info)</li>
+                  <li>Triage bug reports and data quality issues</li>
+                  <li>Execute change jobs and track tool changelogs</li>
                 </ul>
               </div>
               <p>All entities have a <strong style={{ color: "var(--text-primary)" }}>published</strong> status — unpublished items are only visible in the admin panel. Showcase projects follow a verification pipeline: submitted → email verified → admin review → published.</p>
@@ -197,6 +307,10 @@ export default function HelpPage() {
               <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
                 <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/showcase</code>
                 <span style={{ fontSize: "11px", marginLeft: "var(--space-2)" }}>— list published showcase projects</span>
+              </div>
+              <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
+                <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/showcase/github-info?url=</code>
+                <span style={{ fontSize: "11px", marginLeft: "var(--space-2)" }}>— fetch GitHub repo info for form auto-fill</span>
               </div>
               <div style={{ padding: "var(--space-2)", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)" }}>
                 <code style={{ fontSize: "11px", color: "var(--accent-primary)" }}>GET /api/v1/search</code>

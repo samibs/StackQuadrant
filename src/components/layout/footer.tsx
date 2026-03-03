@@ -11,7 +11,7 @@ export function Footer() {
     >
       <div
         style={{ maxWidth: "1200px", margin: "0 auto" }}
-        className="flex flex-col gap-[var(--space-4)]"
+        className="wide-container flex flex-col gap-[var(--space-4)]"
       >
         <div className="footer-columns flex flex-wrap justify-between gap-[var(--space-6)]">
           <div>

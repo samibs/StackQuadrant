@@ -31,11 +31,11 @@ export default async function StacksPage() {
       </div>
 
       {stackList.length === 0 ? (
-        <div className="flex items-center justify-center py-[64px]" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+        <div className="flex items-center justify-center py-[64px] empty-state-wide" style={{ background: "var(--bg-surface)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", minHeight: "30vh" }}>
           <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-muted)" }}>No stacks evaluated yet.</p>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: "var(--grid-gap)" }}>
+        <div className="card-grid-wide" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: "var(--grid-gap)" }}>
           {stackList.map((stack) => (
             <Link
               key={stack.id}

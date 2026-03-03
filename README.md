@@ -1,6 +1,13 @@
 # StackQuadrant
 
-A data-driven intelligence platform for evaluating AI developer tools, open-source AI/LLM repositories, and community-built vibe-coded projects. Think Gartner Magic Quadrant, but built by developers for developers.
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-4.1.0-blue.svg)](CHANGELOG.md)
+[![Built with Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+**The Gartner Magic Quadrant for AI developer tools — built by developers, for developers.**
+
+A data-driven intelligence platform for evaluating AI coding tools, open-source AI/LLM repositories, and community-built vibe-coded projects. Includes PainGaps retail intelligence (AI-powered pain point scanning), FinServ intelligence (team-based vendor pain maps, regulatory radar, practice & fund ops intelligence), tiered billing, and an AI-powered Ask + Suggest + Report widget.
 
 ![StackQuadrant Dashboard](public/screenshot-dashboard.png)
 
@@ -18,22 +25,56 @@ A data-driven intelligence platform for evaluating AI developer tools, open-sour
 ### AI/LLM Ecosystem Directory
 - **Repository Evaluations** — Gartner-style analysis of AI/LLM GitHub repos (frameworks, agents, RAG, vector DBs, inference engines, etc.)
 - **Automated GitHub Metrics** — Stars, forks, contributors, weekly commits, releases synced every 6 hours
+- **Auto-Scoring** — Metrics-based quality scoring engine derives scores from GitHub data using logarithmic normalization with evidence text
 - **Quality Scoring** — 6 dimensions: Documentation Quality, Community Health, Maintenance Velocity, API Design/DX, Production Readiness, Ecosystem Integration
+- **Auto-Discovery** — Weekly GitHub Search API crawler finds and imports new AI/LLM repos across 10 categories
 - **10 Categories** — LLM Frameworks, Agent Frameworks, Fine-tuning Tools, RAG Libraries, Vector Databases, Inference Engines, Prompt Engineering, AI DevOps, Model Serving, Evaluation & Testing
+- **"Our Projects" Badge** — Floating right-side panel highlighting your own repos with gold/amber accent
 
 ### Vibe Coding Showcase
 - **Community Submissions** — Developers submit projects built with AI-assisted coding tools
+- **GitHub Auto-Fill** — Paste a GitHub URL and auto-import project name, description, tech stack, and builder info
+- **Optional Live URL** — Projects without a live presence (frameworks, CLIs, libraries) can be submitted without a project URL
 - **Email Verification** — Automated verification flow before admin review
 - **Quality Scoring** — Projects rated on: Does it work? Code quality? Is it shipped?
 - **Built-With Pages** — Browse projects filtered by the AI tool used to build them
+
+### Ask + Suggest + Report Widget
+- **Ask Widget** — Floating AI assistant (bottom-right) powered by Claude with MCP tool-calling. Ask about tools, stacks, quadrants, benchmarks — get structured responses with recommendation cards, confidence scores, rationale, and alternatives
+- **Suggest a Correction** — Structured forms for: Add tool, Move tool, Update metadata, Merge duplicates, Flag discontinued. Evidence links, tags, user role, auto-captured context
+- **Report Issues** — Bug reports with screenshot upload + Data quality reports with field-level corrections
+- **"Suggest a correction" Link** — Every tool detail page includes a correction button that opens the widget pre-filled with tool context
+- **Admin Review Dashboard** — Suggestions queue with status filters, evidence-first detail view, one-click approve/reject/request-info, change job pipeline
+- **Tool Changelog** — Public change history per tool, generated from approved suggestions
+
+### PainGaps Retail Intelligence
+- **Pain Point Scans** — Run AI-powered scans on any product/tool to detect user pain points from Reddit, review sites, Google Autocomplete, and Twitter
+- **AI Pain Analysis** — OpenAI-powered analysis generating titles, summaries, intensity/frequency/opportunity scores, affected segments, root causes, and competitive gaps
+- **Pain Universe Search** — Pro-only cross-scan search across all pain points with keyword, severity, trend, source, and date range filters
+- **Billing & Plans** — Free/Starter/Pro tiered billing via Stripe with checkout, portal, and webhooks
+- **User Authentication** — JWT dual auth: 15-minute access tokens + 30-day rotating refresh tokens
+- **Source Adapters** — Pluggable data collection: Reddit, Google Autocomplete, Twitter API v2, G2/Capterra review scraping, regulatory RSS feeds
+
+### FinServ Intelligence Platform
+- **Team Management** — Multi-tenant teams with role-based access (admin/analyst/viewer), plan-based seat limits across Analyst/Team/Business/Enterprise tiers
+- **Sector Taxonomy** — 6 financial sectors (Fund Services, Banking, Audit & Accounting, Wealth Management, Fiduciary, Accounting & Tax) with sub-categories
+- **Regulatory Radar** — RSS-ingested regulations (CSSF, FCA, SEC, ESMA, EBA) with status tracking, impact maps, and severity scoring
+- **Vendor Pain Map** — Track financial services vendors, monitor vendor-specific pain signals ranked by intensity
+- **Practice Intelligence** — Three-tab dashboard: Practice Pains, Service Opportunities (demand indicators + scoring), Talent Signals (hiring/retention/skills gap trends)
+- **Fund Operations Intelligence** — Pain index across 6 fund ops areas (NAV, Transfer Agency, Reporting, KYC/AML, Investor Comms, Reconciliation)
+- **Provider Comparison** — Side-by-side comparison of 2-5 fund service providers
+- **API Key Management** — Generate/revoke API keys with plan-based rate limits and audit logging
+- **Report Generation** — CSV/JSON export for vendor pains, regulations, and sector overviews (Business/Enterprise only)
 
 ### Platform Features
 - **Contextual Tooltips** — Hover any score, dimension header, or metric for explanations with evidence
 - **In-App Help** — Comprehensive guide to scores, navigation, and methodology at `/help`
 - **Command Palette** — `Cmd+K` / `Ctrl+K` search across tools, repos, showcase projects, quadrants, benchmarks, and stacks
 - **Dark/Light Theme** — Intelligence dashboard aesthetic with theme toggle
-- **Responsive Layout** — Scales from mobile phones to 34"+ ultrawide monitors
-- **Admin Dashboard** — Full CRUD for managing all content, repo syncing, showcase moderation
+- **Responsive Layout** — Scales from mobile phones to 34"+ ultrawide monitors with dedicated breakpoints at 1440px, 1920px, 2560px, and 3440px+
+- **Repos Page** — Full-viewport layout with category sidebar, dense card grid, owner-highlighted repos
+- **Admin Dashboard** — Full CRUD for managing all content, repo syncing, showcase moderation, suggestion review, report triage
+- **MCP Server** — Internal Model Context Protocol server exposing 12 tools and 2 resources wrapping existing database queries
 - **Evaluation Methodology** — Transparent scoring process documentation at `/methodology`
 
 ## Tech Stack
@@ -43,11 +84,13 @@ A data-driven intelligence platform for evaluating AI developer tools, open-sour
 - **Styling**: CSS Custom Properties design tokens + Tailwind CSS utilities
 - **Visualizations**: Custom SVG components (score rings, radar charts, quadrant charts, score bars, sparklines)
 - **Animations**: Framer Motion
-- **Auth**: JWT (jose + bcryptjs)
+- **Auth**: JWT (jose + bcryptjs) — dual system: admin auth (24h) + user auth (15m access + 30d refresh)
+- **AI**: OpenAI API (pain analysis, solution ideas)
+- **Payments**: Stripe (checkout, billing portal, webhooks)
 - **Search**: cmdk command palette
 - **Email**: Nodemailer (Zoho SMTP)
-- **GitHub Sync**: Native fetch against GitHub REST API v3 with rate limit tracking
-- **Process Manager**: PM2 with cron scheduling for background sync
+- **GitHub Integration**: Native fetch against GitHub REST API v3 — sync, discovery, and showcase auto-fill
+- **Process Manager**: PM2 with cron scheduling for metrics sync (6h) and repo discovery (weekly)
 - **Typography**: JetBrains Mono (data) + Inter (UI)
 
 ## Quick Start
@@ -80,6 +123,10 @@ npm run db:push
 # Seed with sample data (15 AI tools, benchmarks, stacks)
 npm run db:seed
 
+# Seed AI/LLM repos and auto-score them
+npx tsx scripts/seed-repos.ts
+npm run db:score
+
 # Start development server
 npm run dev
 ```
@@ -97,7 +144,7 @@ After seeding, log in at `/admin/login`:
 ```
 src/
 ├── app/
-│   ├── page.tsx                    # Dashboard (3-col viewport-filling grid)
+│   ├── page.tsx                    # Dashboard (responsive grid: 3-6 columns based on screen width)
 │   ├── matrix/                     # Capability matrix (sortable, filterable)
 │   ├── quadrants/                  # Magic quadrant views (responsive SVG)
 │   ├── tools/[slug]/               # Tool detail (radar chart, dimension scores, score history)
@@ -111,37 +158,60 @@ src/
 │   ├── showcase/submit/            # Community submission form
 │   ├── showcase/verify/            # Email verification landing
 │   ├── built-with/[toolSlug]/      # Projects filtered by AI tool
+│   ├── (paingaps)/                 # PainGaps route group
+│   │   ├── scans/                  # Pain point scan management
+│   │   ├── intelligence/           # FinServ intelligence dashboard
+│   │   │   ├── regulations/        # Regulatory radar
+│   │   │   ├── vendors/            # Vendor pain map
+│   │   │   ├── team/               # Team management
+│   │   │   ├── practice/           # Practice intelligence
+│   │   │   └── fund-ops/           # Fund operations intelligence
+│   │   └── universe/               # Pain universe search (Pro)
 │   ├── best-for/                   # Best tool for use case pages
 │   ├── stack-builder/              # Interactive stack builder wizard
 │   ├── compare/                    # Side-by-side tool comparison
 │   ├── methodology/                # Evaluation methodology
 │   ├── help/                       # In-app help & user guide
-│   ├── admin/                      # Admin dashboard (CRUD)
+│   ├── admin/                      # Admin dashboard (CRUD, suggestions, reports)
 │   └── api/v1/                     # REST API
-│       ├── tools/                  # Public tool endpoints
+│       ├── tools/                  # Public tool endpoints + changelog
 │       ├── quadrants/              # Public quadrant endpoints
 │       ├── benchmarks/             # Public benchmark endpoints
 │       ├── stacks/                 # Public stack endpoints
 │       ├── repos/                  # Public repo endpoints
 │       ├── showcase/               # Public showcase + submission endpoints
+│       ├── widget/                 # Ask, Suggest, Report widget endpoints
 │       ├── search/                 # Search index
-│       ├── auth/login/             # Admin authentication
+│       ├── auth/                   # Admin + user authentication
+│       ├── scans/                  # Pain scan endpoints
+│       ├── pain-points/            # Pain point endpoints
+│       ├── universe/               # Pain universe search
+│       ├── finserv/                # FinServ intelligence APIs
+│       ├── billing/                # Stripe billing endpoints
 │       ├── subscribers/            # Newsletter signup
-│       └── admin/                  # Admin CRUD endpoints
+│       └── admin/                  # Admin CRUD + suggestions + reports + change-jobs
 ├── components/
-│   ├── layout/                     # Header, Panel, ThemeProvider
+│   ├── layout/                     # Header, Panel, ThemeProvider, OurProjectsBadge
 │   ├── visualizations/             # ScoreRing, RadarChart, QuadrantChart, ScoreBar, Sparkline
+│   ├── widget/                     # AskWidget, SuggestCorrectionLink
 │   ├── seo/                        # JSON-LD structured data
 │   └── ui/                         # Tooltip, InfoIcon, Skeleton, CommandPalette, Breadcrumb
 ├── lib/
 │   ├── db/                         # Schema, queries, seed
-│   ├── services/                   # GitHub API service
-│   ├── hooks/                      # useAdmin hook
+│   ├── mcp/                        # MCP server (12 tools, 2 resources)
+│   ├── adapters/                   # Source adapters (Reddit, Google, Twitter, review sites, RSS)
+│   ├── services/                   # GitHub, team, finserv, billing, API key, scan, pain analysis
+│   ├── auth/                       # User authentication (JWT dual system)
+│   ├── hooks/                      # useAdmin, useUser hooks
+│   ├── engine/                     # Scan engine orchestration
 │   └── utils/                      # API helpers, auth, email, validation, rate limiting
 ├── styles/
 │   └── tokens.css                  # Design tokens (dark/light themes)
 └── scripts/
-    └── github-sync-worker.ts       # Background GitHub metrics sync (PM2 cron)
+    ├── github-sync-worker.ts       # Background GitHub metrics sync (PM2 cron, every 6h)
+    ├── discover-repos.ts           # GitHub Search API repo discovery (PM2 cron, weekly)
+    ├── seed-repos.ts               # Curated AI/LLM repo seeder with live metrics
+    └── score-repos.ts              # Auto-scoring engine (metrics → quality scores)
 ```
 
 ## Scoring System
@@ -186,16 +256,57 @@ Community projects are rated on three criteria (each 0-10):
 | GET | `/api/v1/benchmarks/:slug` | Benchmark with results |
 | GET | `/api/v1/stacks` | List published stacks |
 | GET | `/api/v1/stacks/:slug` | Stack with tools and metrics |
-| GET | `/api/v1/repos` | List published repos (paginated, filterable by category) |
+| GET | `/api/v1/repos` | List published repos (paginated, filterable by category/owner) |
 | GET | `/api/v1/repos/:slug` | Repo detail with scores and GitHub metrics |
 | GET | `/api/v1/repos/categories` | Repo categories with counts |
 | GET | `/api/v1/showcase` | List published showcase projects |
 | GET | `/api/v1/showcase/built-with/:toolSlug` | Projects built with a specific tool |
-| POST | `/api/v1/showcase/submit` | Submit a project (rate limited: 3/hr) |
+| POST | `/api/v1/showcase/submit` | Submit a project (rate limited: 3/hr, live URL optional) |
+| GET | `/api/v1/showcase/github-info?url=` | Fetch GitHub repo info for form auto-fill |
 | GET | `/api/v1/showcase/verify?token=` | Email verification callback |
+| GET | `/api/v1/tools/:slug/changelog` | Tool change history |
+| POST | `/api/v1/widget/ask` | AI-powered query with MCP tools (rate: 20/hr) |
+| POST | `/api/v1/widget/suggest` | Submit structured suggestion (rate: 5/hr) |
+| POST | `/api/v1/widget/report` | Submit bug/data report (rate: 10/hr) |
+| POST | `/api/v1/widget/report/upload` | Screenshot upload (rate: 3/hr) |
 | GET | `/api/v1/search` | Search index for command palette |
 | POST | `/api/v1/subscribers` | Newsletter signup |
 | GET | `/api/health` | Health check |
+
+### User Auth (JWT required)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/signup` | User registration with plan selection |
+| POST | `/api/v1/auth/user-login` | Login (access + refresh tokens) |
+| POST | `/api/v1/auth/user-logout` | Revoke refresh token |
+| POST | `/api/v1/auth/refresh` | Rotate access token |
+| POST | `/api/v1/billing/checkout` | Create Stripe checkout session |
+| POST | `/api/v1/billing/portal` | Create Stripe billing portal |
+| GET/POST | `/api/v1/scans` | List/create pain scans |
+| GET | `/api/v1/scans/:id` | Scan detail with pain points |
+| POST | `/api/v1/scans/:id/run` | Execute scan with adapters |
+| GET | `/api/v1/pain-points` | List pain points (filtered) |
+| GET | `/api/v1/pain-points/:id` | Pain point detail |
+| POST | `/api/v1/pain-points/:id/analyze` | AI pain analysis |
+| GET | `/api/v1/universe/search` | Cross-scan search (Pro only) |
+| GET | `/api/v1/finserv/sectors` | List sector taxonomy |
+| GET | `/api/v1/finserv/sectors/:id/pains` | Sector pain aggregation |
+| GET/POST | `/api/v1/finserv/regulations` | List/add regulations |
+| GET | `/api/v1/finserv/regulations/:id` | Regulation detail |
+| GET/POST | `/api/v1/finserv/vendors` | List/add tracked vendors |
+| GET/DELETE | `/api/v1/finserv/vendors/:id` | Vendor detail/remove |
+| GET | `/api/v1/finserv/vendors/compare` | Multi-vendor comparison |
+| GET/POST/DELETE | `/api/v1/finserv/alerts` | Alert configuration |
+| GET/POST/PUT/DELETE | `/api/v1/finserv/teams` | Team CRUD |
+| GET/POST/DELETE | `/api/v1/finserv/teams/:id/members` | Member management |
+| GET | `/api/v1/finserv/practice/dashboard` | Practice pains |
+| GET | `/api/v1/finserv/practice/opportunities` | Service opportunities |
+| GET | `/api/v1/finserv/practice/talent` | Talent signals |
+| GET | `/api/v1/finserv/fund-ops/index` | Fund ops pain index |
+| GET | `/api/v1/finserv/fund-ops/providers/compare` | Provider comparison |
+| GET/POST/DELETE | `/api/v1/finserv/api-keys` | API key management |
+| POST | `/api/v1/finserv/reports/generate` | Report generation (CSV/JSON) |
 
 ### Admin (JWT required)
 
@@ -225,6 +336,15 @@ Community projects are rated on three criteria (each 0-10):
 | POST | `/api/v1/admin/showcase/:id/approve` | Approve and publish |
 | POST | `/api/v1/admin/showcase/:id/reject` | Reject with reason |
 | POST | `/api/v1/admin/showcase/:id/score` | Set quality scores |
+| GET | `/api/v1/admin/suggestions` | List suggestions (filterable by status/type) |
+| GET | `/api/v1/admin/suggestions/:id` | Suggestion detail with similar matches |
+| POST | `/api/v1/admin/suggestions/:id/approve` | Approve and create change job |
+| POST | `/api/v1/admin/suggestions/:id/reject` | Reject with reason |
+| POST | `/api/v1/admin/suggestions/:id/request-info` | Email submitter for clarification |
+| GET | `/api/v1/admin/reports` | List reports (filterable by status/type) |
+| GET/PUT | `/api/v1/admin/reports/:id` | Report detail and status update |
+| GET | `/api/v1/admin/change-jobs` | List change jobs |
+| POST | `/api/v1/admin/change-jobs/:id/execute` | Execute change job, create changelog |
 
 ## Database Commands
 
@@ -232,23 +352,61 @@ Community projects are rated on three criteria (each 0-10):
 npm run db:generate    # Generate migration files
 npm run db:migrate     # Run migrations
 npm run db:push        # Push schema (dev mode)
-npm run db:seed        # Seed sample data
+npm run db:seed        # Seed sample data (tools, benchmarks, stacks)
+npm run db:score       # Auto-score repos from GitHub metrics
 npm run db:studio      # Open Drizzle Studio
 ```
 
-## GitHub Sync
+## GitHub Integration
 
+### Metrics Sync
 The platform automatically syncs GitHub metrics for all repositories every 6 hours via a PM2 cron job. You can also trigger manual syncs through the admin API.
 
 ```bash
 # Manual sync
 npx tsx scripts/github-sync-worker.ts
+```
 
-# PM2 manages the schedule (see ecosystem.config.js)
+### Repo Discovery
+A weekly discovery script searches GitHub for new AI/LLM repositories across 10 categories using the GitHub Search API, deduplicates against existing entries, and imports new repos with full metrics.
+
+```bash
+# Manual discovery run
+npx tsx scripts/discover-repos.ts
+
+# Auto-score all repos after discovery
+npm run db:score
+```
+
+### Repo Seeding
+Seed curated AI/LLM repos with live GitHub metrics:
+
+```bash
+npx tsx scripts/seed-repos.ts
+```
+
+### PM2 Schedule
+```bash
 pm2 start ecosystem.config.js
+# Runs: stackquadrant (app), github-sync (every 6h), repo-discovery (weekly Sunday 3am)
 ```
 
 Required: Set `GITHUB_TOKEN` in your `.env` for higher rate limits (5,000 requests/hour authenticated vs 60/hour unauthenticated).
+
+## Repo Auto-Scoring
+
+The auto-scoring engine (`scripts/score-repos.ts`) derives quality scores from GitHub metrics using a transparent methodology:
+
+| Dimension | Key Signals | Weight |
+|-----------|------------|--------|
+| Documentation Quality | Docs site, description, stars proxy, contributors | 20% |
+| Community Health | Stars, contributors, watchers, forks, issue ratio | 20% |
+| API Design & DX | Stars/issues ratio, typed language, license, docs | 20% |
+| Maintenance Velocity | Last commit, weekly commits, releases, age | 15% |
+| Production Readiness | Battle-tested stars, peer review, versioning, license | 15% |
+| Ecosystem Integration | Forks, language ecosystem, license, adoption | 10% |
+
+Scores use logarithmic normalization for wide-range metrics and linear/freshness functions for time-based signals. Each score includes evidence text explaining the contributing factors.
 
 ## Keyboard Shortcuts
 
@@ -257,6 +415,23 @@ Required: Set `GITHUB_TOKEN` in your `.env` for higher rate limits (5,000 reques
 | `Cmd+K` / `Ctrl+K` | Open command palette |
 | `Esc` | Close command palette / dialogs |
 
+## Why StackQuadrant?
+
+- **No marketing bias** — Scores are derived from real benchmarks and GitHub metrics, not vendor demos
+- **Auto-scored repos** — Quality scores generated from live data, not opinions
+- **Full transparency** — Every score includes evidence text explaining what contributed
+- **Community-driven** — Submit projects, suggest corrections, report issues — all from one widget
+- **AI-powered assistance** — Ask questions about tools and get structured, evidence-based answers
+- **Weekly discovery** — New AI/LLM repos found and scored automatically
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines. PRs are welcome.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for details.

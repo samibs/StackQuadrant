@@ -59,6 +59,11 @@ export default function AdminDashboardPage() {
     { label: "Quadrants", count: stats.quadrants, href: "/admin/quadrants", description: "Configure magic quadrant views" },
     { label: "Benchmarks", count: stats.benchmarks, href: "/admin/benchmarks", description: "Manage benchmarks and results" },
     { label: "Stacks", count: stats.stacks, href: "/admin/stacks", description: "Curate tool stack recommendations" },
+    { label: "Suggestions", count: null, href: "/admin/suggestions", description: "Review community suggestions" },
+    { label: "Reports", count: null, href: "/admin/reports", description: "Triage bug reports and data quality issues" },
+    { label: "Analytics", count: null, href: "/admin/analytics", description: "Widget usage, question trends, engagement stats" },
+    { label: "Sites", count: null, href: "/admin/sites", description: "Manage registered sites for multi-app gateway" },
+    { label: "Contributors", count: null, href: "/admin/contributors", description: "View contributor reputation and approval rates" },
   ];
 
   return (
@@ -108,9 +113,11 @@ export default function AdminDashboardPage() {
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", fontWeight: 600, color: "var(--text-primary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 {s.label}
               </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "var(--accent-primary)" }}>
-                {s.count}
-              </span>
+              {s.count !== null && (
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 700, color: "var(--accent-primary)" }}>
+                  {s.count}
+                </span>
+              )}
             </div>
             <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-muted)", marginTop: "var(--space-2)" }}>
               {s.description}

@@ -158,7 +158,7 @@ export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPost
         <h1 style={{ fontFamily: "var(--font-sans)", fontSize: "22px", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.3 }}>
           The Independent Benchmark for AI Developer Tools
         </h1>
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-secondary)", marginTop: "var(--space-2)", maxWidth: "600px" }}>
+        <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-secondary)", marginTop: "var(--space-2)" }}>
           Data-driven evaluations across 6 dimensions. No sponsorships. No pay-to-rank.
         </p>
         {siteStats && (
@@ -359,7 +359,7 @@ export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPost
             xAxisLabel={featuredQuadrant.xAxisLabel}
             yAxisLabel={featuredQuadrant.yAxisLabel}
             quadrantLabels={featuredQuadrant.quadrantLabels}
-            maxHeight="380px"
+            maxHeight="500px"
             positions={featuredQuadrant.positions.map((p) => ({
               toolId: p.toolId,
               toolName: p.toolName,

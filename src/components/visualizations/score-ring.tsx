@@ -11,15 +11,19 @@ interface ScoreRingProps {
   strokeWidth?: number;
   label?: string;
   tooltip?: ReactNode;
+  thresholds?: { excellent: number; average: number };
+  ringColor?: string;
 }
 
-export function ScoreRing({ score, maxScore = 10, size = 64, strokeWidth = 5, label, tooltip }: ScoreRingProps) {
+export function ScoreRing({ score, maxScore = 10, size = 64, strokeWidth = 5, label, tooltip, thresholds, ringColor }: ScoreRingProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = score / maxScore;
   const offset = circumference * (1 - progress);
 
-  const color = score >= 8 ? "var(--score-high)" : score >= 5 ? "var(--score-mid)" : "var(--score-low)";
+  const excellent = thresholds?.excellent ?? 8;
+  const average = thresholds?.average ?? 5;
+  const color = ringColor ?? (score >= excellent ? "var(--score-high)" : score >= average ? "var(--score-mid)" : "var(--score-low)");
 
   const ring = (
     <div className="flex flex-col items-center gap-1">
