@@ -99,18 +99,29 @@ export default function HelpPage() {
                 { name: "Showcase", href: "/showcase", desc: "Vibe Coding Showcase. Community-submitted projects built with AI tools. Auto-fill from GitHub, submit without a live URL for libraries/CLIs, and get quality-scored." },
                 { name: "Best For", href: "/best-for", desc: "Find the right AI tool for your use case — rapid prototyping, enterprise, learning, open-source, and more." },
                 { name: "Stack Builder", href: "/stack-builder", desc: "Interactive wizard to compose a custom tool stack, assign roles, and analyze strengths and gaps." },
-                { name: "Pain Scans", href: "/scans", desc: "PainGaps Retail Intelligence. Run AI-powered scans on products to detect user pain points from Reddit, review sites, Google Autocomplete, and Twitter." },
-                { name: "Intelligence", href: "/intelligence", desc: "FinServ Intelligence Platform. Team-based vendor pain maps, regulatory radar, practice intelligence, fund operations analysis, and sector taxonomy." },
-                { name: "Pain Universe", href: "/universe", desc: "Pro-only cross-scan search across all detected pain points with keyword, severity, trend, source, and date range filters." },
+                { name: "Pain Scans", href: "/scans", desc: "PainGaps Retail Intelligence. Run AI-powered scans on products to detect user pain points from Reddit, review sites, Google Autocomplete, and Twitter.", premium: true },
+                { name: "Intelligence", href: "/intelligence", desc: "FinServ Intelligence Platform. Team-based vendor pain maps, regulatory radar, practice intelligence, fund operations analysis, and sector taxonomy.", premium: true },
+                { name: "Pain Universe", href: "/universe", desc: "Pro-only cross-scan search across all detected pain points with keyword, severity, trend, source, and date range filters.", premium: true },
                 { name: "Methodology", href: "/methodology", desc: "Detailed explanation of our evaluation process, scoring criteria, and update cadence." },
-              ].map((page) => (
+              ].map((page: { name: string; href: string; desc: string; premium?: boolean }) => (
                 <Link
                   key={page.href}
                   href={page.href}
                   className="no-underline"
-                  style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", display: "block" }}
+                  style={{ padding: "var(--space-2)", border: page.premium ? "1px solid #d4a017" : "1px solid var(--border-default)", borderRadius: "var(--radius-sm)", display: "block" }}
                 >
-                  <div style={{ fontWeight: 600, color: "var(--accent-primary)", fontSize: "13px" }}>{page.name}</div>
+                  <div style={{ fontWeight: 600, color: "var(--accent-primary)", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    {page.name}
+                    {page.premium && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "9px", fontWeight: 600, color: "#d4a017", background: "rgba(212, 160, 23, 0.12)", padding: "1px 6px", borderRadius: "8px", border: "1px solid rgba(212, 160, 23, 0.3)", lineHeight: "1.4" }}>
+                        <svg width="8" height="8" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                          <rect x="3" y="7" width="10" height="8" rx="1.5" fill="#d4a017" />
+                          <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#d4a017" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                        </svg>
+                        PREMIUM
+                      </span>
+                    )}
+                  </div>
                   <p style={{ marginTop: "2px", color: "var(--text-secondary)", fontSize: "11px" }}>{page.desc}</p>
                 </Link>
               ))}
@@ -156,7 +167,7 @@ export default function HelpPage() {
             </div>
           </Panel>
 
-          <Panel title="PainGaps Retail">
+          <Panel title={<span style={{ display: "flex", alignItems: "center", gap: "8px" }}>PainGaps Retail<span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "9px", fontWeight: 600, color: "#d4a017", background: "rgba(212, 160, 23, 0.12)", padding: "1px 6px", borderRadius: "8px", border: "1px solid rgba(212, 160, 23, 0.3)", lineHeight: "1.4" }}><svg width="8" height="8" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="8" rx="1.5" fill="#d4a017" /><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#d4a017" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>PREMIUM</span></span>}>
             <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
               <p>PainGaps scans products and tools to detect real user pain points using AI-powered analysis across multiple data sources.</p>
               <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
@@ -174,7 +185,7 @@ export default function HelpPage() {
             </div>
           </Panel>
 
-          <Panel title="FinServ Intelligence">
+          <Panel title={<span style={{ display: "flex", alignItems: "center", gap: "8px" }}>FinServ Intelligence<span style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "9px", fontWeight: 600, color: "#d4a017", background: "rgba(212, 160, 23, 0.12)", padding: "1px 6px", borderRadius: "8px", border: "1px solid rgba(212, 160, 23, 0.3)", lineHeight: "1.4" }}><svg width="8" height="8" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="8" rx="1.5" fill="#d4a017" /><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#d4a017" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>PREMIUM</span></span>}>
             <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
               <p>Team-based intelligence platform for financial services professionals. Navigate to <Link href="/intelligence" style={{ color: "var(--accent-primary)" }}>/intelligence</Link> to access all modules.</p>
               <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>

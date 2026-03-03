@@ -85,14 +85,55 @@ export const PLANS: Record<string, PlanConfig> = {
   },
 };
 
+/** Grace period (in days) after payment failure before revoking access. */
+const PAST_DUE_GRACE_DAYS = 7;
+
 /**
  * Get a user's current plan config with limits.
+ * Enforces subscription validity: canceled, past_due (after grace), expired trials,
+ * and expired billing periods all revert to the free plan.
  */
 export async function getUserPlan(userId: string): Promise<PlanConfig & { subscription: typeof subscriptions.$inferSelect | null }> {
   const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.userId, userId));
+  const FREE = { ...PLANS.free, subscription: sub || null };
 
-  if (!sub || sub.status === "canceled") {
-    return { ...PLANS.free, subscription: sub || null };
+  if (!sub) return FREE;
+
+  // Canceled subscriptions always revert to free
+  if (sub.status === "canceled") return FREE;
+
+  const now = new Date();
+
+  // Past-due: allow a grace period, then revert to free
+  if (sub.status === "past_due") {
+    const graceDeadline = new Date(sub.updatedAt.getTime() + PAST_DUE_GRACE_DAYS * 24 * 60 * 60 * 1000);
+    if (now > graceDeadline) return FREE;
+  }
+
+  // Trial expired: if status is still "trialing" but trial end has passed, revert to free
+  if (sub.status === "trialing" && sub.trialEndsAt && now > sub.trialEndsAt) {
+    // Auto-downgrade in DB so we don't check this every request forever
+    await db.update(subscriptions).set({
+      status: "canceled",
+      planCode: "free",
+      updatedAt: now,
+    }).where(eq(subscriptions.id, sub.id));
+    return FREE;
+  }
+
+  // Billing period expired: if currentPeriodEnd has passed and status isn't free, revert
+  if (sub.planCode !== "free" && sub.currentPeriodEnd && now > sub.currentPeriodEnd) {
+    // Give a 3-day buffer for Stripe webhook delays before hard-revoking
+    const periodBuffer = new Date(sub.currentPeriodEnd.getTime() + 3 * 24 * 60 * 60 * 1000);
+    if (now > periodBuffer) {
+      await db.update(subscriptions).set({
+        status: "canceled",
+        planCode: "free",
+        stripeSubscriptionId: null,
+        updatedAt: now,
+      }).where(eq(subscriptions.id, sub.id));
+      return FREE;
+    }
   }
 
   const plan = PLANS[sub.planCode] || PLANS.free;

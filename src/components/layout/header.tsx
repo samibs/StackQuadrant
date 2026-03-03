@@ -6,14 +6,16 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "./theme-provider";
 
 const NAV_ITEMS = [
-  { label: "MATRIX", href: "/matrix" },
-  { label: "QUADRANTS", href: "/quadrants" },
-  { label: "BENCHMARKS", href: "/benchmarks" },
-  { label: "STACKS", href: "/stacks" },
-  { label: "REPOS", href: "/repos" },
-  { label: "SHOWCASE", href: "/showcase" },
-  { label: "COMPARE", href: "/compare" },
-  { label: "BLOG", href: "/blog" },
+  { label: "MATRIX", href: "/matrix", premium: false },
+  { label: "QUADRANTS", href: "/quadrants", premium: false },
+  { label: "BENCHMARKS", href: "/benchmarks", premium: false },
+  { label: "STACKS", href: "/stacks", premium: false },
+  { label: "REPOS", href: "/repos", premium: false },
+  { label: "SHOWCASE", href: "/showcase", premium: false },
+  { label: "PAINGAPS", href: "/scans", premium: true },
+  { label: "FINSERV", href: "/intelligence", premium: true },
+  { label: "COMPARE", href: "/compare", premium: false },
+  { label: "BLOG", href: "/blog", premium: false },
 ] as const;
 
 export function Header() {
@@ -60,7 +62,15 @@ export function Header() {
                     border: isActive ? "1px solid var(--border-strong)" : "1px solid transparent",
                   }}
                 >
-                  {item.label}
+                  <span className="flex items-center gap-1">
+                    {item.label}
+                    {item.premium && (
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                        <rect x="3" y="7" width="10" height="8" rx="1.5" fill="#d4a017" />
+                        <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#d4a017" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                      </svg>
+                    )}
+                  </span>
                 </Link>
               );
             })}
@@ -153,7 +163,15 @@ export function Header() {
                   background: isActive ? "var(--bg-elevated)" : "transparent",
                 }}
               >
-                {item.label}
+                <span className="flex items-center gap-1">
+                  {item.label}
+                  {item.premium && (
+                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                      <rect x="3" y="7" width="10" height="8" rx="1.5" fill="#d4a017" />
+                      <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="#d4a017" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                    </svg>
+                  )}
+                </span>
               </Link>
             );
           })}

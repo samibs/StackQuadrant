@@ -2,6 +2,20 @@
 
 All notable changes to StackQuadrant are documented here.
 
+## [4.1.0] - 2026-03-03
+
+### Added
+- **Premium nav indicators** — PAINGAPS and FINSERV header nav items now display a yellow lock icon to indicate premium features. Visible in both desktop and mobile navigation
+- **Help page premium badges** — Pain Scans, Intelligence, and Pain Universe entries in the Pages & Navigation panel show a gold PREMIUM badge with lock icon and gold border. PainGaps Retail and FinServ Intelligence panel titles also display the PREMIUM badge
+- **Panel ReactNode title support** — Panel component `title` prop now accepts `ReactNode` in addition to strings, enabling rich title content like badges and icons
+
+### Fixed
+- **Subscription access control hardening** — `getUserPlan()` now enforces subscription validity across all edge cases:
+  - `past_due` status: 7-day grace period after payment failure, then reverts to free plan
+  - Expired trials: if `trialEndsAt` has passed while status is still `trialing`, auto-downgrades to free in the database
+  - Expired billing periods: if `currentPeriodEnd` has passed (with 3-day buffer for Stripe webhook delays), auto-cancels and reverts to free
+  - Previously, `past_due` and expired trials/periods retained paid plan access indefinitely
+
 ## [4.0.0] - 2026-03-02
 
 ### Added — PainGaps Retail Intelligence
