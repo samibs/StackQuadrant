@@ -1,6 +1,6 @@
 {
   "name": "stackquadrant",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -16,6 +16,7 @@
     "db:register-domains": "npx tsx scripts/register-domains.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "bcryptjs": "^3.0.3",

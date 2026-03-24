@@ -70,3 +70,56 @@ docs/
 AGENTS.md
 CLAUDE.md
 chatgpt_discussion_leading_to_the_idea.md
+
+# >>> SkillFoundry Framework (managed by install/update — do not edit this block)
+
+# Memory bank & scratchpads
+memory_bank/
+scratchpads/
+
+# Metrics & knowledge staging
+metrics/
+knowledge/staging/
+
+# Workspace config (keep config.toml tracked, ignore runtime data)
+.skillfoundry/
+!.skillfoundry/config.toml
+
+# Claude runtime artifacts
+.claude/*.jsonl
+.claude/*.json
+.claude/attribution/
+.claude/heartbeat*
+.claude/backups/
+.claude/scratchpad.md
+
+# Keep settings and skills tracked
+!.claude/settings.json
+!.claude/settings.local.json
+!.claude/commands/
+
+# Platform skills are tracked (do NOT ignore)
+!.copilot/custom-agents/
+!.cursor/rules/
+!.agents/skills/
+!.gemini/skills/
+
+# Arena
+.arena/
+
+# Compliance evidence (keep .gitkeep)
+compliance/evidence/*
+!compliance/evidence/.gitkeep
+
+# Observability logs
+observability/*.log
+
+# Framework version markers
+.*/.framework-version
+.*/.framework-updated
+.*/.framework-platform
+
+# Diagnostics
+.skillfoundry-diagnostics.log
+
+# <<< SkillFoundry Framework

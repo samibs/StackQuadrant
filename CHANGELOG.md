@@ -2,6 +2,18 @@
 
 All notable changes to StackQuadrant are documented here.
 
+## [4.2.0] - 2026-03-24
+
+### Added
+- **Automated blog writer** — Claude-powered blog generation from trending AI/LLM news (HackerNews + Reddit). Runs every 2 days via PM2 cron, generates HTML blog posts with AI analysis, and publishes directly to the database
+- **Blog admin API** — `POST /api/v1/admin/blog` for creating blog posts with validation and slug collision handling. `GET /api/v1/admin/blog` for listing all posts
+- **Scan queue worker** — Standalone PM2 cron job (every 15min) picks up queued PainGaps scans and executes them automatically. No more manual-only scan execution
+- **Repo scoring scheduler** — Quality scores now auto-recalculate 30min after each GitHub sync (every 6h), keeping scores fresh with latest metrics
+- **@anthropic-ai/sdk** — Added as production dependency for Claude-powered blog generation
+
+### Changed
+- **Full PM2 automation** — All data pipelines now run on schedule: GitHub sync (6h), repo scoring (6h+30m), repo discovery (weekly), scan queue (15min), blog writer (2 days)
+
 ## [4.1.0] - 2026-03-03
 
 ### Added
