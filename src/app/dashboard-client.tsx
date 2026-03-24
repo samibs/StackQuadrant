@@ -159,7 +159,7 @@ export function DashboardClient({ tools, quadrants, benchmarks, stacks, blogPost
           The Independent Benchmark for AI Developer Tools
         </h1>
         <p style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--text-secondary)", marginTop: "var(--space-2)" }}>
-          Data-driven evaluations across 6 dimensions. No sponsorships. No pay-to-rank.
+          Data-driven evaluations across 6 dimensions. Auto-synced metrics. AI-generated blog. No sponsorships. No pay-to-rank.
         </p>
         {siteStats && (
           <div className="flex items-center gap-[var(--space-4)] mt-[var(--space-3)]" style={{ flexWrap: "wrap" }}>

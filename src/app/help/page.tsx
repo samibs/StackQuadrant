@@ -3,7 +3,7 @@ import { Panel } from "@/components/layout/panel";
 
 export const metadata = {
   title: "Help & User Guide",
-  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, use the Ask widget, suggest corrections, report issues, run PainGaps scans, and explore FinServ intelligence.",
+  description: "Learn how to use StackQuadrant: understand scores, navigate tool comparisons, read quadrant charts, explore AI/LLM repos, submit showcase projects, use the Ask widget, suggest corrections, report issues, run PainGaps scans, explore FinServ intelligence, and learn about automated blog and data pipelines.",
   alternates: { canonical: "/help" },
 };
 
@@ -267,6 +267,30 @@ export default function HelpPage() {
               <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
                 <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Verification Flow</div>
                 <p style={{ fontSize: "11px" }}>Submit → verify your email → admin reviews → published. Quality-scored on: does it work, code quality, and shipped status.</p>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="Blog & Data Automation">
+            <div className="flex flex-col gap-[var(--space-2)]" style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
+              <p>StackQuadrant automatically keeps data fresh and publishes AI-generated blog content on a scheduled cadence.</p>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>AI Blog Writer</div>
+                <p style={{ fontSize: "11px" }}>Every 2 days, Claude analyzes trending AI/LLM news from HackerNews and Reddit, then generates an original blog post with developer-focused analysis. Posts are published automatically at <Link href="/blog" style={{ color: "var(--accent-primary)" }}>/blog</Link>.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Automated Data Pipelines</div>
+                <p style={{ fontSize: "11px" }}>GitHub metrics sync every 6 hours. Quality scores recalculate automatically after each sync. New AI/LLM repos are discovered weekly. PainGaps scan queue processes every 15 minutes.</p>
+              </div>
+              <div style={{ padding: "var(--space-2)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>Schedule Overview</div>
+                <ul style={{ paddingLeft: "16px", margin: 0, fontSize: "11px" }}>
+                  <li>GitHub Sync — every 6 hours</li>
+                  <li>Repo Scoring — 30 min after each sync</li>
+                  <li>Repo Discovery — weekly (Sunday 3am)</li>
+                  <li>Scan Queue — every 15 minutes</li>
+                  <li>Blog Writer — every 2 days at 10am</li>
+                </ul>
               </div>
             </div>
           </Panel>

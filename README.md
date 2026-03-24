@@ -66,6 +66,17 @@ A data-driven intelligence platform for evaluating AI coding tools, open-source 
 - **API Key Management** — Generate/revoke API keys with plan-based rate limits and audit logging
 - **Report Generation** — CSV/JSON export for vendor pains, regulations, and sector overviews (Business/Enterprise only)
 
+### AI Blog & Content Automation
+- **AI Blog Writer** — Claude-powered blog generation from trending AI/LLM news (HackerNews + Reddit) every 2 days. Generates original analysis posts with developer-focused insights, auto-published to `/blog`
+- **Blog Admin API** — `GET/POST /api/v1/admin/blog` for creating and managing blog posts with validation and slug collision handling
+
+### Automated Data Pipelines
+- **GitHub Sync** — Syncs stars, forks, issues, contributors, commits, and releases for all repos every 6 hours
+- **Repo Scoring** — Auto-recalculates quality scores across 6 dimensions 30 minutes after each GitHub sync
+- **Repo Discovery** — Discovers new AI/LLM repos from GitHub Search API weekly across 10 categories
+- **Scan Queue Worker** — Processes queued PainGaps scans every 15 minutes (Reddit fetch + pain signal analysis)
+- **Stripe Webhooks** — Real-time subscription sync on checkout, payment, and cancellation events
+
 ### Platform Features
 - **Contextual Tooltips** — Hover any score, dimension header, or metric for explanations with evidence
 - **In-App Help** — Comprehensive guide to scores, navigation, and methodology at `/help`
