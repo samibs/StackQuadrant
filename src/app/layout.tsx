@@ -71,6 +71,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             `,
           }}
         />
+        {/* Compliance help layer (Observer) — silent until observerEnabled, no host-app changes */}
+        <script
+          src="https://observer.hexalab.dev/help-layer/observer.iife.js"
+          data-app-id="stackquadrant"
+          data-registry-url="https://observer.hexalab.dev"
+          async
+        />
+        <script
+          src="https://observer.hexalab.dev/help-layer/injector.iife.js"
+          data-injector-auto
+          async
+        />
       </head>
       <body>
         <OrganizationJsonLd />
