@@ -903,3 +903,72 @@ export const apiKeyAuditLog = pgTable("api_key_audit_log", {
   index("api_key_audit_log_key_idx").on(table.apiKeyId),
   index("api_key_audit_log_created_at_idx").on(table.createdAt),
 ]);
+
+// ============================================
+// FinServ DORA — Incident Taxonomy & Risk Scoring
+// ESA categories from Regulation (EU) 2022/2554 + RTS on classification
+// ============================================
+
+export const doraIncidentCategories = pgTable("dora_incident_categories", {
+  id: varchar("id", { length: 40 }).primaryKey(),                          // "availability", "data_integrity", ...
+  name: varchar("name", { length: 120 }).notNull(),
+  description: text("description").notNull(),
+  severityWeight: decimal("severity_weight", { precision: 3, scale: 2 }).notNull(), // 0.00 – 1.00
+  displayOrder: integer("display_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check("dora_categories_weight_range", sql`${table.severityWeight} >= 0 AND ${table.severityWeight} <= 1`),
+]);
+
+export const esaIncidentReports = pgTable("esa_incident_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reportTitle: varchar("report_title", { length: 300 }).notNull(),
+  reportDate: date("report_date").notNull(),                               // ESA publication date
+  reportPeriodStart: date("report_period_start"),
+  reportPeriodEnd: date("report_period_end"),
+  sourceUrl: text("source_url").notNull(),
+  summary: text("summary").notNull(),
+  categoryDistribution: jsonb("category_distribution").notNull().$type<Record<string, number>>().default({}),
+  totalIncidents: integer("total_incidents").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique("esa_reports_date_url_unique").on(table.reportDate, table.sourceUrl),
+  index("esa_reports_date_idx").on(table.reportDate),
+]);
+
+export const vendorDoraIncidents = pgTable("vendor_dora_incidents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  trackedVendorId: uuid("tracked_vendor_id").notNull().references(() => trackedVendors.id, { onDelete: "cascade" }),
+  categoryId: varchar("category_id", { length: 40 }).notNull().references(() => doraIncidentCategories.id),
+  esaReportId: uuid("esa_report_id").references(() => esaIncidentReports.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 240 }).notNull(),
+  description: text("description").notNull(),
+  severity: integer("severity").notNull(),                                 // 1 (minor) – 5 (catastrophic)
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  disclosureUrl: text("disclosure_url"),
+  reportedBy: varchar("reported_by", { length: 200 }),                     // user email or "esa-import"
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("vendor_dora_incidents_vendor_idx").on(table.trackedVendorId),
+  index("vendor_dora_incidents_category_idx").on(table.categoryId),
+  index("vendor_dora_incidents_report_idx").on(table.esaReportId),
+  index("vendor_dora_incidents_occurred_idx").on(table.occurredAt),
+  check("vendor_dora_severity_range", sql`${table.severity} >= 1 AND ${table.severity} <= 5`),
+]);
+
+export const vendorDoraRiskScores = pgTable("vendor_dora_risk_scores", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  trackedVendorId: uuid("tracked_vendor_id").notNull().references(() => trackedVendors.id, { onDelete: "cascade" }).unique(),
+  riskScore: decimal("risk_score", { precision: 5, scale: 2 }).notNull(),  // 0 – 100
+  incidentCount: integer("incident_count").notNull().default(0),
+  categoryBreakdown: jsonb("category_breakdown").notNull().$type<Record<string, { count: number; weightedScore: number }>>().default({}),
+  lastEsaReportId: uuid("last_esa_report_id").references(() => esaIncidentReports.id, { onDelete: "set null" }),
+  computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("vendor_dora_risk_scores_score_idx").on(table.riskScore),
+  check("vendor_dora_risk_score_range", sql`${table.riskScore} >= 0 AND ${table.riskScore} <= 100`),
+]);
