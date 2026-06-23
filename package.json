@@ -13,7 +13,8 @@
     "db:seed": "npx tsx src/lib/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "db:score": "npx tsx scripts/score-repos.ts",
-    "db:register-domains": "npx tsx scripts/register-domains.ts"
+    "db:register-domains": "npx tsx scripts/register-domains.ts",
+    "test": "node --import tsx --test src/components/seo/__tests__/json-ld.test.ts src/components/seo/__tests__/json-ld-render.test.tsx src/app/llms.txt/__tests__/route.test.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

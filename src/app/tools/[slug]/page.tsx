@@ -50,6 +50,14 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ slu
         category={tool.category}
         score={tool.overallScore}
         vendor={tool.vendor}
+        reviews={tool.scores
+          .filter((s) => s.score !== null)
+          .map((s) => ({
+            dimension: s.dimension,
+            score: s.score as number,
+            evidence: s.evidence,
+            weight: s.dimensionWeight,
+          }))}
       />
       <ToolDetailClient tool={tool} scoreHistory={history} overallTrend={overallTrend} changelogCount={changelogCount} />
     </>

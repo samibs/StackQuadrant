@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getQuadrantBySlug } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import { QuadrantDetailClient } from "./quadrant-detail-client";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbJsonLd, CollectionPageJsonLd } from "@/components/seo/json-ld";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,18 @@ export default async function QuadrantDetailPage({ params }: { params: Promise<{
   return (
     <>
       <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Quadrants", href: "/quadrants" }, { name: quadrant.title, href: `/quadrants/${slug}` }]} />
+      <CollectionPageJsonLd
+        name={`${quadrant.title} — AI Coding Tool Quadrant`}
+        description={quadrant.description}
+        url={`/quadrants/${slug}`}
+        itemKind="SoftwareApplication"
+        items={quadrant.positions.map((p) => ({
+          name: p.toolName,
+          url: `/tools/${p.toolSlug}`,
+          score: p.overallScore,
+          description: `${p.toolName} positioned in ${quadrant.title}: capability ${p.xPosition.toFixed(2)}, market presence ${p.yPosition.toFixed(2)}.`,
+        }))}
+      />
       <div style={{ padding: "var(--grid-gap) var(--grid-gap) 0" }}>
         <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Quadrants", href: "/quadrants" }, { label: quadrant.title }]} />
       </div>
