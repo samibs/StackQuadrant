@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getToolsByBestFor, BEST_FOR_CATEGORIES } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbJsonLd, CollectionPageJsonLd } from "@/components/seo/json-ld";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ScoreRing } from "@/components/visualizations/score-ring";
 
@@ -36,6 +36,18 @@ export default async function BestForCategoryPage({ params }: { params: Promise<
   return (
     <>
       <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Best For", href: "/best-for" }, { name: cat.label, href: `/best-for/${category}` }]} />
+      <CollectionPageJsonLd
+        name={`Best AI Tools for ${cat.label}`}
+        description={cat.description}
+        url={`/best-for/${category}`}
+        itemKind="SoftwareApplication"
+        items={categoryTools.map((tool) => ({
+          name: tool.name,
+          url: `/tools/${tool.slug}`,
+          description: tool.description.length > 200 ? tool.description.substring(0, 200) + "…" : tool.description,
+          score: tool.overallScore ? parseFloat(String(tool.overallScore)) : null,
+        }))}
+      />
       <div style={{ padding: "var(--grid-gap)" }}>
         <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Best For", href: "/best-for" }, { label: cat.label }]} />
 
