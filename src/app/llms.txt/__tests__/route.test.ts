@@ -11,13 +11,20 @@ test("llms-full.txt route exports a GET handler", async () => {
   assert.equal(typeof mod.GET, "function");
 });
 
-test("robots route emits LLM crawler rules including GPTBot, ClaudeBot, PerplexityBot", async () => {
+test("robots distinguishes retrieval crawlers from training crawlers", async () => {
   const mod = await import("../../robots");
   const robots = mod.default();
   assert.ok(Array.isArray(robots.rules));
-  const rules = robots.rules as Array<{ userAgent: string | string[] }>;
-  const uas = rules.flatMap((r) => Array.isArray(r.userAgent) ? r.userAgent : [r.userAgent]);
-  for (const expected of ["*", "GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended", "CCBot"]) {
-    assert.ok(uas.includes(expected), `expected robots to advertise ${expected}, got: ${uas.join(", ")}`);
-  }
+  const rules = robots.rules as Array<{ userAgent: string | string[]; allow?: string; disallow?: string | string[] }>;
+
+  const findRule = (userAgent: string) => rules.find((rule) =>
+    Array.isArray(rule.userAgent) ? rule.userAgent.includes(userAgent) : rule.userAgent === userAgent
+  );
+
+  assert.equal(findRule("OAI-SearchBot")?.allow, "/");
+  assert.equal(findRule("Claude-SearchBot")?.allow, "/");
+  assert.equal(findRule("PerplexityBot")?.allow, "/");
+  assert.equal(findRule("GPTBot")?.disallow, "/");
+  assert.equal(findRule("ClaudeBot")?.disallow, "/");
+  assert.equal(findRule("CCBot")?.disallow, "/");
 });

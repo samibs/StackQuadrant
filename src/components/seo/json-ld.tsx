@@ -2,10 +2,6 @@ interface JsonLdProps {
   data: Record<string, unknown>;
 }
 
-// JSON.stringify already escapes </ embeddings safely for our payload shapes
-// (we only pass plain serializable data — never user-supplied raw HTML). We
-// still defensively escape `<` to avoid `</script>` breakouts if a field ever
-// contains the literal "</script>" substring.
 function safeStringify(data: unknown): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
@@ -20,6 +16,7 @@ export function JsonLd({ data }: JsonLdProps) {
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://stackquadrant.com";
+const CONTENT_LICENSE_URL = process.env.NEXT_PUBLIC_CONTENT_LICENSE_URL;
 
 export function OrganizationJsonLd() {
   return (
@@ -79,6 +76,25 @@ export interface DimensionReview {
   weight?: number | null;
 }
 
+function editorialReview(score: number | null, dimensions?: DimensionReview[]) {
+  if (score === null || score === undefined) return undefined;
+  const dimensionSummary = (dimensions ?? [])
+    .map((dimension) => `${dimension.dimension}: ${dimension.score}/10`)
+    .join("; ");
+  return {
+    "@type": "Review",
+    name: "StackQuadrant editorial evaluation",
+    reviewRating: {
+      "@type": "Rating",
+      ratingValue: score,
+      bestRating: 10,
+      worstRating: 0,
+    },
+    ...(dimensionSummary ? { reviewBody: `Dimension scores — ${dimensionSummary}` } : {}),
+    author: { "@type": "Organization", name: "StackQuadrant", url: BASE_URL },
+  };
+}
+
 export function buildSoftwareApplicationData(opts: {
   name: string;
   description: string;
@@ -89,7 +105,7 @@ export function buildSoftwareApplicationData(opts: {
   reviews?: DimensionReview[];
   reviewCount?: number;
 }) {
-  const { name, description, url, category, score, vendor, reviews, reviewCount } = opts;
+  const { name, description, url, category, score, vendor, reviews } = opts;
   const data: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -102,30 +118,8 @@ export function buildSoftwareApplicationData(opts: {
     data.author = { "@type": "Organization", name: vendor };
     data.publisher = { "@type": "Organization", name: vendor };
   }
-  if (score !== null && score !== undefined) {
-    data.aggregateRating = {
-      "@type": "AggregateRating",
-      ratingValue: score,
-      bestRating: 10,
-      worstRating: 0,
-      ratingCount: reviewCount ?? (reviews?.length ?? 1),
-      reviewCount: reviewCount ?? (reviews?.length ?? 1),
-    };
-  }
-  if (reviews && reviews.length > 0) {
-    data.review = reviews.map((r) => ({
-      "@type": "Review",
-      reviewRating: {
-        "@type": "Rating",
-        ratingValue: r.score,
-        bestRating: 10,
-        worstRating: 0,
-      },
-      name: r.dimension,
-      reviewBody: r.evidence || `${r.dimension} score: ${r.score}/10`,
-      author: { "@type": "Organization", name: "StackQuadrant" },
-    }));
-  }
+  const review = editorialReview(score, reviews);
+  if (review) data.review = review;
   return data;
 }
 
@@ -173,30 +167,8 @@ export function buildSoftwareSourceCodeData(opts: {
       userInteractionCount: stars,
     };
   }
-  if (score !== null && score !== undefined) {
-    data.aggregateRating = {
-      "@type": "AggregateRating",
-      ratingValue: score,
-      bestRating: 10,
-      worstRating: 0,
-      ratingCount: reviews?.length ?? 1,
-      reviewCount: reviews?.length ?? 1,
-    };
-  }
-  if (reviews && reviews.length > 0) {
-    data.review = reviews.map((r) => ({
-      "@type": "Review",
-      reviewRating: {
-        "@type": "Rating",
-        ratingValue: r.score,
-        bestRating: 10,
-        worstRating: 0,
-      },
-      name: r.dimension,
-      reviewBody: r.evidence || `${r.dimension} score: ${r.score}/10`,
-      author: { "@type": "Organization", name: "StackQuadrant" },
-    }));
-  }
+  const review = editorialReview(score, reviews);
+  if (review) data.review = review;
   return data;
 }
 
@@ -232,30 +204,30 @@ export function buildBenchmarkDatasetData(opts: {
     keywords: ["AI coding tools", category, "benchmark", "developer tools"],
     creator: { "@type": "Organization", name: "StackQuadrant", url: BASE_URL },
     publisher: { "@type": "Organization", name: "StackQuadrant", url: BASE_URL },
-    license: "https://creativecommons.org/licenses/by/4.0/",
+    ...(CONTENT_LICENSE_URL ? { license: CONTENT_LICENSE_URL } : {}),
     isAccessibleForFree: true,
     measurementTechnique: methodology,
-    variableMeasured: variables.map((v) => ({
+    variableMeasured: variables.map((variable) => ({
       "@type": "PropertyValue",
-      name: v.name,
-      unitText: v.unit,
-      description: v.higherIsBetter ? "Higher is better" : "Lower is better",
+      name: variable.name,
+      unitText: variable.unit,
+      description: variable.higherIsBetter ? "Higher is better" : "Lower is better",
     })),
     distribution: {
       "@type": "DataDownload",
       encodingFormat: "text/html",
       contentUrl: `${BASE_URL}${url}`,
     },
-    hasPart: observations.map((o) => ({
+    hasPart: observations.map((observation) => ({
       "@type": "Observation",
       observationAbout: {
         "@type": "SoftwareApplication",
-        name: o.toolName,
-        ...(o.toolUrl ? { url: `${BASE_URL}${o.toolUrl}` } : {}),
+        name: observation.toolName,
+        ...(observation.toolUrl ? { url: `${BASE_URL}${observation.toolUrl}` } : {}),
       },
-      measuredProperty: o.metric,
-      value: o.value,
-      unitText: o.unit,
+      measuredProperty: observation.metric,
+      value: observation.value,
+      unitText: observation.unit,
     })),
   };
 }
@@ -289,38 +261,22 @@ export function buildCollectionPageData(opts: {
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: items.length,
-      itemListElement: items.map((it, i) => ({
+      itemListElement: items.map((item, index) => ({
         "@type": "ListItem",
-        position: i + 1,
-        url: `${BASE_URL}${it.url}`,
-        name: it.name,
-        ...(it.description ? { description: it.description } : {}),
-        ...(itemKind && it.score !== undefined && it.score !== null
+        position: index + 1,
+        url: `${BASE_URL}${item.url}`,
+        name: item.name,
+        ...(item.description ? { description: item.description } : {}),
+        ...(itemKind
           ? {
               item: {
                 "@type": itemKind,
-                name: it.name,
-                url: `${BASE_URL}${it.url}`,
-                ...(it.description ? { description: it.description } : {}),
-                aggregateRating: {
-                  "@type": "AggregateRating",
-                  ratingValue: it.score,
-                  bestRating: 10,
-                  worstRating: 0,
-                  ratingCount: 1,
-                },
+                name: item.name,
+                url: `${BASE_URL}${item.url}`,
+                ...(item.description ? { description: item.description } : {}),
               },
             }
-          : itemKind
-            ? {
-                item: {
-                  "@type": itemKind,
-                  name: it.name,
-                  url: `${BASE_URL}${it.url}`,
-                  ...(it.description ? { description: it.description } : {}),
-                },
-              }
-            : {}),
+          : {}),
       })),
     },
   };

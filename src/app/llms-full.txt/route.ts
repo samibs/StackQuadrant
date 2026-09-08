@@ -13,8 +13,8 @@ import {
 import { eq, desc, asc } from "drizzle-orm";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://stackquadrant.com";
+const CONTENT_LICENSE_URL = process.env.NEXT_PUBLIC_CONTENT_LICENSE_URL;
 
-export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 interface BenchmarkMetric {
@@ -35,18 +35,19 @@ export async function GET() {
     publishedStacks,
     publishedRepos,
   ] = await Promise.all([
-    db
-      .select()
-      .from(tools)
-      .where(eq(tools.status, "published"))
-      .orderBy(desc(tools.overallScore)),
+    db.select().from(tools).where(eq(tools.status, "published")).orderBy(desc(tools.overallScore)).limit(250),
     db.select().from(dimensions).orderBy(asc(dimensions.displayOrder)),
-    db.select().from(toolScores),
     db
-      .select()
-      .from(quadrants)
-      .where(eq(quadrants.status, "published"))
-      .orderBy(desc(quadrants.publishedAt)),
+      .select({
+        toolId: toolScores.toolId,
+        dimensionId: toolScores.dimensionId,
+        score: toolScores.score,
+        evidence: toolScores.evidence,
+      })
+      .from(toolScores)
+      .innerJoin(tools, eq(toolScores.toolId, tools.id))
+      .where(eq(tools.status, "published")),
+    db.select().from(quadrants).where(eq(quadrants.status, "published")).orderBy(desc(quadrants.publishedAt)).limit(100),
     db
       .select({
         quadrantId: quadrantPositions.quadrantId,
@@ -58,196 +59,124 @@ export async function GET() {
       })
       .from(quadrantPositions)
       .innerJoin(tools, eq(quadrantPositions.toolId, tools.id)),
-    db
-      .select()
-      .from(benchmarks)
-      .where(eq(benchmarks.status, "published"))
-      .orderBy(desc(benchmarks.publishedAt)),
+    db.select().from(benchmarks).where(eq(benchmarks.status, "published")).orderBy(desc(benchmarks.publishedAt)).limit(100),
     db
       .select({
         benchmarkId: benchmarkResults.benchmarkId,
         toolName: tools.name,
         toolSlug: tools.slug,
         results: benchmarkResults.results,
-        evidence: benchmarkResults.evidence,
-        runDate: benchmarkResults.runDate,
       })
       .from(benchmarkResults)
       .innerJoin(tools, eq(benchmarkResults.toolId, tools.id)),
-    db.select().from(stacks).where(eq(stacks.status, "published")).orderBy(desc(stacks.overallScore)),
-    db
-      .select()
-      .from(repos)
-      .where(eq(repos.status, "published"))
-      .orderBy(desc(repos.overallScore))
-      .limit(200),
+    db.select().from(stacks).where(eq(stacks.status, "published")).orderBy(desc(stacks.overallScore)).limit(100),
+    db.select().from(repos).where(eq(repos.status, "published")).orderBy(desc(repos.overallScore)).limit(200),
   ]);
 
   const scoresByTool = new Map<string, Array<{ dimensionId: string; score: string; evidence: string | null }>>();
-  for (const s of allToolScores) {
-    const arr = scoresByTool.get(s.toolId) ?? [];
-    arr.push({ dimensionId: s.dimensionId, score: s.score, evidence: s.evidence });
-    scoresByTool.set(s.toolId, arr);
+  for (const score of allToolScores) {
+    const values = scoresByTool.get(score.toolId) ?? [];
+    values.push({ dimensionId: score.dimensionId, score: score.score, evidence: score.evidence });
+    scoresByTool.set(score.toolId, values);
   }
-  const dimById = new Map(allDimensions.map((d) => [d.id, d]));
+  const dimensionById = new Map(allDimensions.map((dimension) => [dimension.id, dimension]));
 
   const positionsByQuadrant = new Map<string, typeof allPositions>();
-  for (const p of allPositions) {
-    const arr = positionsByQuadrant.get(p.quadrantId) ?? [];
-    arr.push(p);
-    positionsByQuadrant.set(p.quadrantId, arr);
+  for (const position of allPositions) {
+    const values = positionsByQuadrant.get(position.quadrantId) ?? [];
+    values.push(position);
+    positionsByQuadrant.set(position.quadrantId, values);
   }
 
   const resultsByBenchmark = new Map<string, typeof allBenchmarkResults>();
-  for (const r of allBenchmarkResults) {
-    const arr = resultsByBenchmark.get(r.benchmarkId) ?? [];
-    arr.push(r);
-    resultsByBenchmark.set(r.benchmarkId, arr);
+  for (const result of allBenchmarkResults) {
+    const values = resultsByBenchmark.get(result.benchmarkId) ?? [];
+    values.push(result);
+    resultsByBenchmark.set(result.benchmarkId, values);
   }
 
-  const lines: string[] = [];
+  const lines: string[] = [
+    "# StackQuadrant — Full Index for LLM Citation",
+    "",
+    "> Machine-readable export of published StackQuadrant evaluations, benchmarks, quadrants, stacks, and repository reviews. Use the canonical URLs and methodology page when grounding answers.",
+    "",
+    `Source: StackQuadrant (${BASE_URL})`,
+    `Generated: ${new Date().toISOString()}`,
+  ];
+  if (CONTENT_LICENSE_URL) lines.push(`License: ${CONTENT_LICENSE_URL}`);
+  lines.push("", `Methodology: ${BASE_URL}/methodology`, `Short index: ${BASE_URL}/llms.txt`, "", "---", "");
 
-  lines.push(`# StackQuadrant — Full Index for LLM Citation`);
-  lines.push("");
-  lines.push(
-    `> Machine-readable, full-content export of all published AI tool evaluations, benchmarks, quadrants, stacks, and AI/LLM repository reviews. Generated dynamically from the production database. Use this file to ground LLM answers about AI coding tools and developer-tool benchmarks.`
-  );
-  lines.push("");
-  lines.push(`Source: StackQuadrant (${BASE_URL})`);
-  lines.push(`Generated: ${new Date().toISOString()}`);
-  lines.push(
-    `License: Content is licensed CC BY 4.0 — citation back to the source URL is required.`
-  );
-  lines.push("");
-  lines.push(`Methodology: ${BASE_URL}/methodology`);
-  lines.push(`Short index: ${BASE_URL}/llms.txt`);
-  lines.push("");
-  lines.push("---");
-  lines.push("");
-
-  // Tools
-  lines.push(`## AI Coding Tools (${publishedTools.length})`);
-  lines.push("");
-  for (const t of publishedTools) {
-    const url = `${BASE_URL}/tools/${t.slug}`;
-    lines.push(`### ${t.name}`);
-    lines.push("");
-    lines.push(`- URL: ${url}`);
-    if (t.vendor) lines.push(`- Vendor: ${t.vendor}`);
-    if (t.category) lines.push(`- Category: ${t.category}`);
-    if (t.overallScore) lines.push(`- Overall Score: ${t.overallScore}/10`);
-    if (t.pricingModel) lines.push(`- Pricing Model: ${t.pricingModel}`);
-    if (t.websiteUrl) lines.push(`- Website: ${t.websiteUrl}`);
-    lines.push("");
-    lines.push(`${t.description}`);
-    lines.push("");
-    const scores = scoresByTool.get(t.id) ?? [];
-    if (scores.length > 0) {
-      lines.push(`Dimension scores:`);
-      for (const s of scores) {
-        const dim = dimById.get(s.dimensionId);
-        if (!dim) continue;
-        lines.push(`- ${dim.name}: ${s.score}/10${s.evidence ? ` — ${s.evidence}` : ""}`);
+  lines.push(`## AI Coding Tools (${publishedTools.length})`, "");
+  for (const tool of publishedTools) {
+    lines.push(`### ${tool.name}`, "", `- URL: ${BASE_URL}/tools/${tool.slug}`);
+    if (tool.vendor) lines.push(`- Vendor: ${tool.vendor}`);
+    if (tool.category) lines.push(`- Category: ${tool.category}`);
+    if (tool.overallScore) lines.push(`- StackQuadrant Overall Score: ${tool.overallScore}/10`);
+    if (tool.pricingModel) lines.push(`- Pricing Model: ${tool.pricingModel}`);
+    if (tool.websiteUrl) lines.push(`- Website: ${tool.websiteUrl}`);
+    lines.push("", tool.description, "");
+    const scores = scoresByTool.get(tool.id) ?? [];
+    if (scores.length) {
+      lines.push("StackQuadrant dimension scores:");
+      for (const score of scores) {
+        const dimension = dimensionById.get(score.dimensionId);
+        if (dimension) lines.push(`- ${dimension.name}: ${score.score}/10${score.evidence ? ` — ${score.evidence}` : ""}`);
       }
       lines.push("");
     }
   }
 
-  // Quadrants
-  lines.push(`## Quadrants (${publishedQuadrants.length})`);
-  lines.push("");
-  for (const q of publishedQuadrants) {
-    const url = `${BASE_URL}/quadrants/${q.slug}`;
-    lines.push(`### ${q.title}`);
+  lines.push(`## Quadrants (${publishedQuadrants.length})`, "");
+  for (const quadrant of publishedQuadrants) {
+    lines.push(`### ${quadrant.title}`, "", `- URL: ${BASE_URL}/quadrants/${quadrant.slug}`, "", quadrant.description, "");
+    for (const position of positionsByQuadrant.get(quadrant.id) ?? []) {
+      lines.push(`- [${position.toolName}](${BASE_URL}/tools/${position.toolSlug}): capability ${parseFloat(position.xPosition).toFixed(2)}, market presence ${parseFloat(position.yPosition).toFixed(2)}${position.overallScore ? `, overall ${position.overallScore}/10` : ""}`);
+    }
     lines.push("");
-    lines.push(`- URL: ${url}`);
+  }
+
+  lines.push(`## Benchmarks (${publishedBenchmarks.length})`, "");
+  for (const benchmark of publishedBenchmarks) {
+    lines.push(`### ${benchmark.title}`, "", `- URL: ${BASE_URL}/benchmarks/${benchmark.slug}`, `- Category: ${benchmark.category}`, "", benchmark.description, "", `Methodology: ${benchmark.methodology}`, "");
+    const metrics = benchmark.metrics as BenchmarkMetric[];
+    for (const result of resultsByBenchmark.get(benchmark.id) ?? []) {
+      const resultData = result.results as Record<string, number>;
+      const values = metrics
+        .filter((metric) => resultData[metric.name] !== undefined && resultData[metric.name] !== null)
+        .map((metric) => `${metric.name}=${resultData[metric.name]}${metric.unit}`)
+        .join(", ");
+      lines.push(`- ${result.toolName} (${BASE_URL}/tools/${result.toolSlug}): ${values}`);
+    }
     lines.push("");
-    lines.push(q.description);
-    lines.push("");
-    const positions = positionsByQuadrant.get(q.id) ?? [];
-    if (positions.length > 0) {
-      lines.push(`Positioned tools (${positions.length}):`);
-      for (const p of positions) {
-        lines.push(
-          `- [${p.toolName}](${BASE_URL}/tools/${p.toolSlug}): capability ${parseFloat(p.xPosition).toFixed(2)}, market presence ${parseFloat(p.yPosition).toFixed(2)}${p.overallScore ? `, overall ${p.overallScore}/10` : ""}`
-        );
-      }
+  }
+
+  if (publishedStacks.length) {
+    lines.push(`## Stacks (${publishedStacks.length})`, "");
+    for (const stack of publishedStacks) {
+      lines.push(`### ${stack.name}`, "", `- URL: ${BASE_URL}/stacks/${stack.slug}`);
+      if (stack.overallScore) lines.push(`- StackQuadrant Overall Score: ${stack.overallScore}/10`);
+      lines.push("", stack.description, "");
+    }
+  }
+
+  if (publishedRepos.length) {
+    lines.push(`## AI/LLM Repositories (top ${publishedRepos.length})`, "");
+    for (const repo of publishedRepos) {
+      lines.push(`### ${repo.name}`, "", `- URL: ${BASE_URL}/repos/${repo.slug}`);
+      if (repo.githubUrl) lines.push(`- GitHub: ${repo.githubUrl}`);
+      if (repo.language) lines.push(`- Language: ${repo.language}`);
+      if (repo.license) lines.push(`- Repository License: ${repo.license}`);
+      if (repo.githubStars) lines.push(`- Stars: ${repo.githubStars}`);
+      if (repo.overallScore) lines.push(`- StackQuadrant Overall Score: ${repo.overallScore}/10`);
+      if (repo.description) lines.push("", repo.description);
       lines.push("");
     }
   }
 
-  // Benchmarks
-  lines.push(`## Benchmarks (${publishedBenchmarks.length})`);
-  lines.push("");
-  for (const b of publishedBenchmarks) {
-    const url = `${BASE_URL}/benchmarks/${b.slug}`;
-    lines.push(`### ${b.title}`);
-    lines.push("");
-    lines.push(`- URL: ${url}`);
-    lines.push(`- Category: ${b.category}`);
-    lines.push("");
-    lines.push(b.description);
-    lines.push("");
-    lines.push(`Methodology: ${b.methodology}`);
-    lines.push("");
-    const metrics = b.metrics as BenchmarkMetric[];
-    const results = resultsByBenchmark.get(b.id) ?? [];
-    if (results.length > 0 && metrics?.length > 0) {
-      lines.push(`Results:`);
-      for (const r of results) {
-        const resultData = r.results as Record<string, number>;
-        const parts = metrics
-          .filter((m) => resultData[m.name] !== undefined && resultData[m.name] !== null)
-          .map((m) => `${m.name}=${resultData[m.name]}${m.unit}`)
-          .join(", ");
-        lines.push(`- ${r.toolName} (/tools/${r.toolSlug}): ${parts}`);
-      }
-      lines.push("");
-    }
-  }
-
-  // Stacks
-  if (publishedStacks.length > 0) {
-    lines.push(`## Stacks (${publishedStacks.length})`);
-    lines.push("");
-    for (const s of publishedStacks) {
-      lines.push(`### ${s.name}`);
-      lines.push("");
-      lines.push(`- URL: ${BASE_URL}/stacks/${s.slug}`);
-      if (s.overallScore) lines.push(`- Overall Score: ${s.overallScore}/10`);
-      lines.push("");
-      lines.push(s.description);
-      lines.push("");
-    }
-  }
-
-  // Repos
-  if (publishedRepos.length > 0) {
-    lines.push(`## AI/LLM Repositories (top ${publishedRepos.length})`);
-    lines.push("");
-    for (const r of publishedRepos) {
-      lines.push(`### ${r.name}`);
-      lines.push("");
-      lines.push(`- URL: ${BASE_URL}/repos/${r.slug}`);
-      if (r.githubUrl) lines.push(`- GitHub: ${r.githubUrl}`);
-      if (r.language) lines.push(`- Language: ${r.language}`);
-      if (r.license) lines.push(`- License: ${r.license}`);
-      if (r.githubStars) lines.push(`- Stars: ${r.githubStars}`);
-      if (r.overallScore) lines.push(`- Overall Score: ${r.overallScore}/10`);
-      lines.push("");
-      if (r.description) {
-        lines.push(r.description);
-        lines.push("");
-      }
-    }
-  }
-
-  const body = lines.join("\n");
-
-  return new Response(body, {
+  return new Response(lines.join("\n"), {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "Cache-Control": "public, max-age=3600, s-maxage=3600",
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
       "X-Robots-Tag": "all",
     },
   });

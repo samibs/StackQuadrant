@@ -2,35 +2,42 @@ import type { MetadataRoute } from "next";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://stackquadrant.com";
 
-// Crawlers explicitly allowed to ingest content for LLM citation.
-// Listed individually so future policy tightening can flip a single entry to disallow.
-const LLM_CRAWLERS = [
-  "GPTBot",
+// Retrieval/user-agent crawlers are useful for answer grounding and citation.
+const RETRIEVAL_CRAWLERS = [
   "ChatGPT-User",
   "OAI-SearchBot",
-  "ClaudeBot",
   "Claude-User",
   "Claude-SearchBot",
-  "anthropic-ai",
   "PerplexityBot",
   "Perplexity-User",
+  "DuckAssistBot",
+  "Mistral-User",
+  "YouBot",
+] as const;
+
+// Training/general-ingestion crawlers are intentionally restricted unless StackQuadrant
+// explicitly changes its content-licensing policy later.
+const TRAINING_CRAWLERS = [
+  "GPTBot",
+  "ClaudeBot",
+  "anthropic-ai",
   "Google-Extended",
-  "GoogleOther",
   "CCBot",
   "Bytespider",
   "Applebot-Extended",
   "Meta-ExternalAgent",
-  "DuckAssistBot",
-  "Mistral-User",
-  "YouBot",
   "Cohere-AI",
 ] as const;
 
 export default function robots(): MetadataRoute.Robots {
-  const llmRules = LLM_CRAWLERS.map((userAgent) => ({
+  const retrievalRules = RETRIEVAL_CRAWLERS.map((userAgent) => ({
     userAgent,
     allow: "/",
     disallow: ["/admin/", "/api/"],
+  }));
+  const trainingRules = TRAINING_CRAWLERS.map((userAgent) => ({
+    userAgent,
+    disallow: "/",
   }));
 
   return {
@@ -40,7 +47,8 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
         disallow: ["/admin/", "/api/"],
       },
-      ...llmRules,
+      ...retrievalRules,
+      ...trainingRules,
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
     host: BASE_URL,
