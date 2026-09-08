@@ -22,7 +22,10 @@ export async function DELETE(
       return apiError("FORBIDDEN", "Only team admins can delete incidents", 403);
     }
 
-    await deleteVendorIncident(incidentId);
+    // Tenant boundary is enforced again in the service predicate by vendorId + incidentId.
+    const deleted = await deleteVendorIncident(vendorId, incidentId);
+    if (!deleted) return apiError("NOT_FOUND", "Incident not found for this vendor", 404);
+
     return apiSuccess({ deleted: true });
   } catch (error) {
     console.error("DELETE /api/v1/finserv/vendors/[vendorId]/dora/[incidentId] error:", error);

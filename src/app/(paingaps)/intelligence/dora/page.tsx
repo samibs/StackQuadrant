@@ -61,11 +61,11 @@ export default function DoraTaxonomyPage() {
       <Link href="/intelligence/vendors" style={{ fontSize: "11px", color: "var(--text-muted)", textDecoration: "none" }}>← Vendor Pain Map</Link>
 
       <h1 style={{ fontSize: "20px", fontWeight: 700, marginTop: 12, marginBottom: 6 }}>
-        DORA Incident Taxonomy
+        StackQuadrant DORA-Aligned Incident Taxonomy
       </h1>
       <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: 28, lineHeight: 1.5 }}>
-        ICT incident categories aligned with Regulation (EU) 2022/2554 (DORA) and the ESA joint reporting framework.
-        Each category carries a severity weight used in the vendor risk score.
+        StackQuadrant incident categories aligned to DORA concepts and the ESA reporting framework.
+        Category weights are proprietary StackQuadrant scoring parameters, not ESA regulatory severity weights.
       </p>
 
       <section style={{ marginBottom: 36 }}>

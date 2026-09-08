@@ -1,7 +1,5 @@
-// ============================================
-// FinServ DORA Service — Incident taxonomy & severity-weighted risk scoring
-// Maps ESA-published DORA incident categories to vendor disclosure history
-// ============================================
+// StackQuadrant DORA-aligned incident intelligence and proprietary risk scoring.
+// Regulatory source data and StackQuadrant scoring methodology are deliberately separated.
 
 import { db } from "@/lib/db";
 import {
@@ -11,7 +9,14 @@ import {
   vendorDoraRiskScores,
   trackedVendors,
 } from "@/lib/db/schema";
-import { eq, desc, sql, asc } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
+import {
+  calculateVendorRiskScore,
+  SCORING_MODEL_VERSION,
+} from "@/lib/services/finserv-dora-score";
+
+const SCORE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const RECOMPUTE_BATCH_SIZE = 25;
 
 export interface DoraCategory {
   id: string;
@@ -48,10 +53,6 @@ export interface VendorIncident {
   reportedBy: string | null;
 }
 
-// ============================================
-// Categories
-// ============================================
-
 export async function listDoraCategories(): Promise<DoraCategory[]> {
   const rows = await db
     .select()
@@ -59,13 +60,13 @@ export async function listDoraCategories(): Promise<DoraCategory[]> {
     .where(eq(doraIncidentCategories.isActive, true))
     .orderBy(asc(doraIncidentCategories.displayOrder));
 
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    description: r.description,
-    severityWeight: r.severityWeight,
-    displayOrder: r.displayOrder,
-    isActive: r.isActive,
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    severityWeight: row.severityWeight,
+    displayOrder: row.displayOrder,
+    isActive: row.isActive,
   }));
 }
 
@@ -85,35 +86,17 @@ export async function getDoraCategory(categoryId: string): Promise<DoraCategory 
   };
 }
 
-// ============================================
-// ESA Reports
-// ============================================
-
 export async function listEsaReports(): Promise<EsaReport[]> {
-  const rows = await db
-    .select()
-    .from(esaIncidentReports)
-    .orderBy(desc(esaIncidentReports.reportDate));
-
-  return rows.map((r) => ({
-    id: r.id,
-    reportTitle: r.reportTitle,
-    reportDate: String(r.reportDate),
-    reportPeriodStart: r.reportPeriodStart ? String(r.reportPeriodStart) : null,
-    reportPeriodEnd: r.reportPeriodEnd ? String(r.reportPeriodEnd) : null,
-    sourceUrl: r.sourceUrl,
-    summary: r.summary,
-    categoryDistribution: r.categoryDistribution as Record<string, number>,
-    totalIncidents: r.totalIncidents,
-  }));
+  const rows = await db.select().from(esaIncidentReports).orderBy(desc(esaIncidentReports.reportDate));
+  return rows.map(toEsaReport);
 }
 
 export async function getEsaReport(reportId: string): Promise<EsaReport | null> {
-  const [row] = await db
-    .select()
-    .from(esaIncidentReports)
-    .where(eq(esaIncidentReports.id, reportId));
-  if (!row) return null;
+  const [row] = await db.select().from(esaIncidentReports).where(eq(esaIncidentReports.id, reportId));
+  return row ? toEsaReport(row) : null;
+}
+
+function toEsaReport(row: typeof esaIncidentReports.$inferSelect): EsaReport {
   return {
     id: row.id,
     reportTitle: row.reportTitle,
@@ -140,36 +123,21 @@ export async function recordEsaReport(data: {
   const [row] = await db
     .insert(esaIncidentReports)
     .values({
-      reportTitle: data.reportTitle,
+      reportTitle: data.reportTitle.trim(),
       reportDate: data.reportDate,
       reportPeriodStart: data.reportPeriodStart || null,
       reportPeriodEnd: data.reportPeriodEnd || null,
       sourceUrl: data.sourceUrl,
-      summary: data.summary,
+      summary: data.summary.trim(),
       categoryDistribution: data.categoryDistribution || {},
       totalIncidents: data.totalIncidents ?? 0,
     })
     .returning();
 
-  // Recompute risk scores for all vendors against the new report baseline
-  await recomputeAllVendorRiskScores(row.id);
-
-  return {
-    id: row.id,
-    reportTitle: row.reportTitle,
-    reportDate: String(row.reportDate),
-    reportPeriodStart: row.reportPeriodStart ? String(row.reportPeriodStart) : null,
-    reportPeriodEnd: row.reportPeriodEnd ? String(row.reportPeriodEnd) : null,
-    sourceUrl: row.sourceUrl,
-    summary: row.summary,
-    categoryDistribution: row.categoryDistribution as Record<string, number>,
-    totalIncidents: row.totalIncidents,
-  };
+  // Do not synchronously recompute every vendor in an HTTP request.
+  // Bulk recomputation remains available as an explicit background/operational job.
+  return toEsaReport(row);
 }
-
-// ============================================
-// Vendor Incidents
-// ============================================
 
 export async function listVendorIncidents(vendorId: string): Promise<VendorIncident[]> {
   const rows = await db
@@ -178,18 +146,18 @@ export async function listVendorIncidents(vendorId: string): Promise<VendorIncid
     .where(eq(vendorDoraIncidents.trackedVendorId, vendorId))
     .orderBy(desc(vendorDoraIncidents.occurredAt));
 
-  return rows.map((r) => ({
-    id: r.id,
-    trackedVendorId: r.trackedVendorId,
-    categoryId: r.categoryId,
-    esaReportId: r.esaReportId,
-    title: r.title,
-    description: r.description,
-    severity: r.severity,
-    occurredAt: r.occurredAt,
-    resolvedAt: r.resolvedAt,
-    disclosureUrl: r.disclosureUrl,
-    reportedBy: r.reportedBy,
+  return rows.map((row) => ({
+    id: row.id,
+    trackedVendorId: row.trackedVendorId,
+    categoryId: row.categoryId,
+    esaReportId: row.esaReportId,
+    title: row.title,
+    description: row.description,
+    severity: row.severity,
+    occurredAt: row.occurredAt,
+    resolvedAt: row.resolvedAt,
+    disclosureUrl: row.disclosureUrl,
+    reportedBy: row.reportedBy,
   }));
 }
 
@@ -210,23 +178,45 @@ export async function addVendorIncident(
   | { success: true; incident: VendorIncident }
   | { success: false; code: string; message: string }
 > {
-  const vendor = await db
-    .select()
-    .from(trackedVendors)
-    .where(eq(trackedVendors.id, vendorId))
-    .then((r) => r[0]);
+  const [vendor] = await db.select().from(trackedVendors).where(eq(trackedVendors.id, vendorId));
   if (!vendor) return { success: false, code: "NOT_FOUND", message: "Vendor not found" };
 
   const category = await getDoraCategory(data.categoryId);
-  if (!category) return { success: false, code: "INVALID_CATEGORY", message: `Unknown DORA category: ${data.categoryId}` };
+  if (!category || !category.isActive) {
+    return { success: false, code: "INVALID_CATEGORY", message: `Unknown or inactive DORA-aligned category: ${data.categoryId}` };
+  }
 
-  if (data.severity < 1 || data.severity > 5) {
-    return { success: false, code: "INVALID_SEVERITY", message: "Severity must be 1-5" };
+  if (!Number.isInteger(data.severity) || data.severity < 1 || data.severity > 5) {
+    return { success: false, code: "INVALID_SEVERITY", message: "Severity must be an integer from 1 to 5" };
+  }
+
+  const title = data.title.trim();
+  const description = data.description.trim();
+  if (!title || title.length > 240) {
+    return { success: false, code: "INVALID_TITLE", message: "Title must contain 1-240 characters" };
+  }
+  if (!description) {
+    return { success: false, code: "INVALID_DESCRIPTION", message: "Description is required" };
   }
 
   const occurredAt = new Date(data.occurredAt);
-  if (isNaN(occurredAt.getTime())) {
-    return { success: false, code: "INVALID_DATE", message: "occurredAt is not a valid ISO timestamp" };
+  if (Number.isNaN(occurredAt.getTime())) {
+    return { success: false, code: "INVALID_DATE", message: "occurredAt is not a valid timestamp" };
+  }
+
+  let resolvedAt: Date | null = null;
+  if (data.resolvedAt) {
+    resolvedAt = new Date(data.resolvedAt);
+    if (Number.isNaN(resolvedAt.getTime())) {
+      return { success: false, code: "INVALID_DATE", message: "resolvedAt is not a valid timestamp" };
+    }
+    if (resolvedAt < occurredAt) {
+      return { success: false, code: "INVALID_DATE_ORDER", message: "resolvedAt cannot precede occurredAt" };
+    }
+  }
+
+  if (data.esaReportId && !(await getEsaReport(data.esaReportId))) {
+    return { success: false, code: "INVALID_ESA_REPORT", message: "Referenced ESA report does not exist" };
   }
 
   const [row] = await db
@@ -235,17 +225,16 @@ export async function addVendorIncident(
       trackedVendorId: vendorId,
       categoryId: data.categoryId,
       esaReportId: data.esaReportId || null,
-      title: data.title,
-      description: data.description,
+      title,
+      description,
       severity: data.severity,
       occurredAt,
-      resolvedAt: data.resolvedAt ? new Date(data.resolvedAt) : null,
+      resolvedAt,
       disclosureUrl: data.disclosureUrl || null,
       reportedBy: data.reportedBy || null,
     })
     .returning();
 
-  // Refresh cached risk score for this vendor
   await computeVendorRiskScore(vendorId);
 
   return {
@@ -266,38 +255,18 @@ export async function addVendorIncident(
   };
 }
 
-export async function deleteVendorIncident(incidentId: string): Promise<void> {
-  const [row] = await db
-    .select()
-    .from(vendorDoraIncidents)
-    .where(eq(vendorDoraIncidents.id, incidentId));
-  if (!row) return;
-  await db.delete(vendorDoraIncidents).where(eq(vendorDoraIncidents.id, incidentId));
-  await computeVendorRiskScore(row.trackedVendorId);
-}
+export async function deleteVendorIncident(vendorId: string, incidentId: string): Promise<boolean> {
+  const ownershipPredicate = and(
+    eq(vendorDoraIncidents.id, incidentId),
+    eq(vendorDoraIncidents.trackedVendorId, vendorId)
+  );
 
-// ============================================
-// Severity-weighted risk score
-// ============================================
-//
-// Score formula:
-//   For each incident: weighted = severity * categoryWeight  (max 5.0)
-//   Sum across incidents, normalised so 20 max-severity incidents → 100.
-//
-// Decay: incidents older than 730 days (2y) decay linearly to 25% weight.
-// This mirrors DORA reporting horizons without erasing historical risk signal.
+  const [row] = await db.select().from(vendorDoraIncidents).where(ownershipPredicate);
+  if (!row) return false;
 
-const MAX_SCORE = 100;
-const NORMALISATION_CAP = 100; // 100 weighted units = score of 100
-const DECAY_HORIZON_DAYS = 730;
-const DECAY_FLOOR = 0.25;
-
-function ageDecay(occurredAt: Date, now: Date): number {
-  const ageDays = (now.getTime() - occurredAt.getTime()) / (1000 * 60 * 60 * 24);
-  if (ageDays <= 0) return 1;
-  if (ageDays >= DECAY_HORIZON_DAYS) return DECAY_FLOOR;
-  const progress = ageDays / DECAY_HORIZON_DAYS;
-  return 1 - progress * (1 - DECAY_FLOOR);
+  await db.delete(vendorDoraIncidents).where(ownershipPredicate);
+  await computeVendorRiskScore(vendorId);
+  return true;
 }
 
 export async function computeVendorRiskScore(vendorId: string): Promise<{
@@ -305,30 +274,13 @@ export async function computeVendorRiskScore(vendorId: string): Promise<{
   incidentCount: number;
   categoryBreakdown: Record<string, { count: number; weightedScore: number }>;
 }> {
-  const incidents = await listVendorIncidents(vendorId);
-  const categories = await listDoraCategories();
-  const weightMap = new Map(categories.map((c) => [c.id, Number(c.severityWeight)]));
+  const [incidents, categories] = await Promise.all([
+    listVendorIncidents(vendorId),
+    listDoraCategories(),
+  ]);
+  const weightMap = new Map(categories.map((category) => [category.id, Number(category.severityWeight)]));
+  const calculated = calculateVendorRiskScore(incidents, weightMap, new Date());
 
-  const breakdown: Record<string, { count: number; weightedScore: number }> = {};
-  let totalWeighted = 0;
-  const now = new Date();
-
-  for (const inc of incidents) {
-    const catWeight = weightMap.get(inc.categoryId) ?? 0.5;
-    const decay = ageDecay(inc.occurredAt, now);
-    const weighted = inc.severity * catWeight * decay;
-    totalWeighted += weighted;
-
-    const entry = breakdown[inc.categoryId] || { count: 0, weightedScore: 0 };
-    entry.count += 1;
-    entry.weightedScore += weighted;
-    breakdown[inc.categoryId] = entry;
-  }
-
-  const rawScore = (totalWeighted / NORMALISATION_CAP) * MAX_SCORE;
-  const riskScore = Math.min(MAX_SCORE, Math.max(0, Math.round(rawScore * 100) / 100));
-
-  // Persist cached score
   const [latestReport] = await db
     .select({ id: esaIncidentReports.id })
     .from(esaIncidentReports)
@@ -339,24 +291,26 @@ export async function computeVendorRiskScore(vendorId: string): Promise<{
     .insert(vendorDoraRiskScores)
     .values({
       trackedVendorId: vendorId,
-      riskScore: riskScore.toFixed(2),
-      incidentCount: incidents.length,
-      categoryBreakdown: breakdown,
+      riskScore: calculated.riskScore.toFixed(2),
+      incidentCount: calculated.incidentCount,
+      categoryBreakdown: calculated.categoryBreakdown,
       lastEsaReportId: latestReport?.id || null,
+      scoringModelVersion: SCORING_MODEL_VERSION,
       computedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: vendorDoraRiskScores.trackedVendorId,
       set: {
-        riskScore: riskScore.toFixed(2),
-        incidentCount: incidents.length,
-        categoryBreakdown: breakdown,
+        riskScore: calculated.riskScore.toFixed(2),
+        incidentCount: calculated.incidentCount,
+        categoryBreakdown: calculated.categoryBreakdown,
         lastEsaReportId: latestReport?.id || null,
+        scoringModelVersion: SCORING_MODEL_VERSION,
         computedAt: new Date(),
       },
     });
 
-  return { riskScore, incidentCount: incidents.length, categoryBreakdown: breakdown };
+  return calculated;
 }
 
 export async function getVendorRiskScore(vendorId: string): Promise<{
@@ -365,39 +319,36 @@ export async function getVendorRiskScore(vendorId: string): Promise<{
   categoryBreakdown: Record<string, { count: number; weightedScore: number }>;
   computedAt: Date;
   lastEsaReportId: string | null;
+  scoringModelVersion: string;
 } | null> {
   const [row] = await db
     .select()
     .from(vendorDoraRiskScores)
     .where(eq(vendorDoraRiskScores.trackedVendorId, vendorId));
   if (!row) return null;
+
   return {
     riskScore: Number(row.riskScore),
     incidentCount: row.incidentCount,
     categoryBreakdown: row.categoryBreakdown as Record<string, { count: number; weightedScore: number }>,
     computedAt: row.computedAt,
     lastEsaReportId: row.lastEsaReportId,
+    scoringModelVersion: row.scoringModelVersion,
   };
 }
 
-export async function recomputeAllVendorRiskScores(triggerReportId: string): Promise<{ updated: number }> {
+export async function recomputeAllVendorRiskScores(_triggerReportId?: string): Promise<{ updated: number }> {
   const vendors = await db.select({ id: trackedVendors.id }).from(trackedVendors);
   let updated = 0;
-  for (const v of vendors) {
-    await computeVendorRiskScore(v.id);
-    updated += 1;
+
+  for (let offset = 0; offset < vendors.length; offset += RECOMPUTE_BATCH_SIZE) {
+    const batch = vendors.slice(offset, offset + RECOMPUTE_BATCH_SIZE);
+    await Promise.all(batch.map((vendor) => computeVendorRiskScore(vendor.id)));
+    updated += batch.length;
   }
-  // touch the trigger report (no-op write) so any audit log captures the recompute event
-  await db
-    .update(esaIncidentReports)
-    .set({ updatedAt: new Date() })
-    .where(eq(esaIncidentReports.id, triggerReportId));
+
   return { updated };
 }
-
-// ============================================
-// Vendor DORA summary (used by detail endpoint)
-// ============================================
 
 export async function getVendorDoraSummary(vendorId: string): Promise<{
   vendorId: string;
@@ -407,6 +358,7 @@ export async function getVendorDoraSummary(vendorId: string): Promise<{
   incidents: VendorIncident[];
   categories: DoraCategory[];
   latestEsaReport: EsaReport | null;
+  scoringModelVersion: string;
 }> {
   const [incidents, categories, cached] = await Promise.all([
     listVendorIncidents(vendorId),
@@ -414,16 +366,17 @@ export async function getVendorDoraSummary(vendorId: string): Promise<{
     getVendorRiskScore(vendorId),
   ]);
 
+  const cacheIsStale = !cached
+    || cached.scoringModelVersion !== SCORING_MODEL_VERSION
+    || Date.now() - cached.computedAt.getTime() > SCORE_CACHE_TTL_MS;
+
   let scoreSnapshot = cached;
+  if (cacheIsStale) {
+    await computeVendorRiskScore(vendorId);
+    scoreSnapshot = await getVendorRiskScore(vendorId);
+  }
   if (!scoreSnapshot) {
-    const fresh = await computeVendorRiskScore(vendorId);
-    scoreSnapshot = {
-      riskScore: fresh.riskScore,
-      incidentCount: fresh.incidentCount,
-      categoryBreakdown: fresh.categoryBreakdown,
-      computedAt: new Date(),
-      lastEsaReportId: null,
-    };
+    throw new Error(`Unable to compute DORA-aligned risk score for vendor ${vendorId}`);
   }
 
   const [latestReportRow] = await db
@@ -432,20 +385,6 @@ export async function getVendorDoraSummary(vendorId: string): Promise<{
     .orderBy(desc(esaIncidentReports.reportDate))
     .limit(1);
 
-  const latestEsaReport: EsaReport | null = latestReportRow
-    ? {
-        id: latestReportRow.id,
-        reportTitle: latestReportRow.reportTitle,
-        reportDate: String(latestReportRow.reportDate),
-        reportPeriodStart: latestReportRow.reportPeriodStart ? String(latestReportRow.reportPeriodStart) : null,
-        reportPeriodEnd: latestReportRow.reportPeriodEnd ? String(latestReportRow.reportPeriodEnd) : null,
-        sourceUrl: latestReportRow.sourceUrl,
-        summary: latestReportRow.summary,
-        categoryDistribution: latestReportRow.categoryDistribution as Record<string, number>,
-        totalIncidents: latestReportRow.totalIncidents,
-      }
-    : null;
-
   return {
     vendorId,
     riskScore: scoreSnapshot.riskScore,
@@ -453,13 +392,10 @@ export async function getVendorDoraSummary(vendorId: string): Promise<{
     categoryBreakdown: scoreSnapshot.categoryBreakdown,
     incidents,
     categories,
-    latestEsaReport,
+    latestEsaReport: latestReportRow ? toEsaReport(latestReportRow) : null,
+    scoringModelVersion: scoreSnapshot.scoringModelVersion,
   };
 }
-
-// ============================================
-// Sector-level aggregation
-// ============================================
 
 export async function getSectorDoraOverview(teamId: string, sector?: string): Promise<{
   sector: string | null;
@@ -483,26 +419,24 @@ export async function getSectorDoraOverview(teamId: string, sector?: string): Pr
         : eq(trackedVendors.teamId, teamId)
     );
 
-  const scored = vendorRows.map((r) => ({
-    vendorId: r.id,
-    vendorName: r.vendorName,
-    riskScore: r.riskScore ? Number(r.riskScore) : 0,
-    incidentCount: r.incidentCount ?? 0,
+  const scored = vendorRows.map((row) => ({
+    vendorId: row.id,
+    vendorName: row.vendorName,
+    riskScore: row.riskScore ? Number(row.riskScore) : 0,
+    incidentCount: row.incidentCount ?? 0,
   }));
 
-  const avg = scored.length > 0
-    ? scored.reduce((sum, v) => sum + v.riskScore, 0) / scored.length
+  const avgRiskScore = scored.length
+    ? scored.reduce((sum, vendor) => sum + vendor.riskScore, 0) / scored.length
     : 0;
-
-  const highRisk = scored
-    .filter((v) => v.riskScore >= 40)
-    .sort((a, b) => b.riskScore - a.riskScore)
-    .slice(0, 20);
 
   return {
     sector: sector || null,
     vendorCount: scored.length,
-    avgRiskScore: Math.round(avg * 100) / 100,
-    highRiskVendors: highRisk,
+    avgRiskScore: Math.round(avgRiskScore * 100) / 100,
+    highRiskVendors: scored
+      .filter((vendor) => vendor.riskScore >= 40)
+      .sort((a, b) => b.riskScore - a.riskScore)
+      .slice(0, 20),
   };
 }
