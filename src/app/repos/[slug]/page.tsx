@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getRepoBySlug } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbJsonLd, SoftwareSourceCodeJsonLd } from "@/components/seo/json-ld";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ScoreRing } from "@/components/visualizations/score-ring";
 import { ScoreBar } from "@/components/visualizations/score-bar";
@@ -50,6 +50,25 @@ export default async function RepoDetailPage({ params }: { params: Promise<{ slu
   return (
     <>
       <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Repos", href: "/repos" }, { name: repo.name, href: `/repos/${slug}` }]} />
+      <SoftwareSourceCodeJsonLd
+        name={repo.name}
+        description={repo.description || `${repo.name} repository evaluation`}
+        url={`/repos/${slug}`}
+        codeRepository={repo.githubUrl}
+        programmingLanguage={repo.language}
+        license={repo.license}
+        category={repo.category?.name ?? null}
+        score={repo.overallScore ? parseFloat(repo.overallScore) : null}
+        stars={repo.githubStars}
+        reviews={repo.scores
+          .filter((s) => s.score !== null)
+          .map((s) => ({
+            dimension: s.dimension,
+            score: s.score as number,
+            evidence: s.evidence,
+            weight: s.dimensionWeight,
+          }))}
+      />
       <div style={{ padding: "var(--grid-gap)" }}>
         <div style={{ padding: "0 0 var(--space-2)" }}>
           <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Repos", href: "/repos" }, { label: repo.name }]} />

@@ -3,7 +3,7 @@ import { getBenchmarkBySlug } from "@/lib/db/queries";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { InfoIcon } from "@/components/ui/tooltip";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbJsonLd, BenchmarkDatasetJsonLd, type BenchmarkObservation } from "@/components/seo/json-ld";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 export const dynamic = "force-dynamic";
@@ -33,9 +33,31 @@ export default async function BenchmarkDetailPage({ params }: { params: Promise<
 
   const metrics = benchmark.metrics as Array<{ name: string; unit: string; higherIsBetter: boolean }>;
 
+  const observations: BenchmarkObservation[] = benchmark.results.flatMap((r) =>
+    metrics
+      .filter((m) => r.results[m.name] !== undefined && r.results[m.name] !== null)
+      .map((m) => ({
+        toolName: r.toolName,
+        toolUrl: `/tools/${r.toolSlug}`,
+        metric: m.name,
+        unit: m.unit,
+        value: r.results[m.name],
+        higherIsBetter: m.higherIsBetter,
+      }))
+  );
+
   return (
     <>
     <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Benchmarks", href: "/benchmarks" }, { name: benchmark.title, href: `/benchmarks/${slug}` }]} />
+    <BenchmarkDatasetJsonLd
+      title={benchmark.title}
+      description={benchmark.description}
+      url={`/benchmarks/${slug}`}
+      methodology={benchmark.methodology}
+      category={benchmark.category}
+      variables={metrics}
+      observations={observations}
+    />
     <div style={{ padding: "var(--grid-gap)" }}>
       <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Benchmarks", href: "/benchmarks" }, { label: benchmark.title }]} />
       {/* Header */}

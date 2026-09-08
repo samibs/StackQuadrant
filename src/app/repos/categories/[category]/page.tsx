@@ -3,7 +3,7 @@ import { getPublishedRepos, getRepoCategories } from "@/lib/db/queries";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ScoreRing } from "@/components/visualizations/score-ring";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbJsonLd, CollectionPageJsonLd } from "@/components/seo/json-ld";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +42,18 @@ export default async function RepoCategoryPage({ params, searchParams }: { param
   return (
     <>
       <BreadcrumbJsonLd items={[{ name: "Home", href: "/" }, { name: "Repos", href: "/repos" }, { name: cat.name, href: `/repos/categories/${category}` }]} />
+      <CollectionPageJsonLd
+        name={`${cat.name} — AI/LLM Repositories`}
+        description={cat.description || `Browse ${cat.name} repositories evaluated by StackQuadrant`}
+        url={`/repos/categories/${category}`}
+        itemKind="SoftwareSourceCode"
+        items={data.repos.map((repo) => ({
+          name: repo.name,
+          url: `/repos/${repo.slug}`,
+          description: repo.description ? (repo.description.length > 200 ? repo.description.substring(0, 200) + "…" : repo.description) : undefined,
+          score: repo.overallScore ? parseFloat(repo.overallScore) : null,
+        }))}
+      />
       <div style={{ padding: "var(--grid-gap)" }}>
         <div style={{ padding: "0 0 var(--space-2)" }}>
           <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Repos", href: "/repos" }, { label: cat.name }]} />
